@@ -21,7 +21,7 @@ final class RecallMonitorStore: ObservableObject {
         set { UserDefaults.standard.set(newValue, forKey: "feedURL") }
     }
 
-    static let defaultFeedURL = "https://YOUR-USERNAME.github.io/recall-monitor/recalls.json"
+    static let defaultFeedURL = "https://machin0413.github.io/recall-monitor-app/recalls.json"
 
     private let seenKey = "notifiedRecallIDs.v1"
     private let dateFormatter: DateFormatter = {
