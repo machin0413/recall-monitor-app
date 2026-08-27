@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>リコール監視アプリ — データ公開ページ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0f1420;--card:#171e2e;--line:#26334d;--text:#e8edf7;--sub:#93a3c2;--accent:#4da3ff;--warn:#ffb454;--danger:#ff6b6b;}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:"Noto Sans JP",system-ui,sans-serif;line-height:1.7}
+  .wrap{max-width:920px;margin:0 auto;padding:32px 20px 80px}
+  header{border-bottom:1px solid var(--line);padding-bottom:20px;margin-bottom:28px}
+  h1{font-size:1.5rem;letter-spacing:.02em}
+  h1 span{color:var(--accent)}
+  .meta{color:var(--sub);font-size:.85rem;margin-top:10px}
+  .badge{display:inline-block;background:rgba(77,163,255,.12);color:var(--accent);border:1px solid rgba(77,163,255,.35);border-radius:99px;padding:2px 12px;font-size:.78rem;margin-right:8px}
+  table{width:100%;border-collapse:collapse;margin-top:18px;background:var(--card);border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+  th,td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--line);font-size:.9rem;vertical-align:top}
+  th{background:#1c2740;color:var(--sub);font-weight:700;font-size:.8rem;letter-spacing:.05em}
+  tr:last-child td{border-bottom:none}
+  .maker{white-space:nowrap;font-weight:700}
+  .date{white-space:nowrap;color:var(--sub)}
+  .type{color:var(--warn);font-family:ui-monospace,Menlo,monospace;font-size:.8rem}
+  .vin{color:var(--sub);font-size:.78rem;font-family:ui-monospace,Menlo,monospace}
+  .empty{padding:60px 20px;text-align:center;color:var(--sub)}
+  .empty strong{color:var(--text);display:block;margin-bottom:8px}
+  footer{margin-top:40px;color:var(--sub);font-size:.75rem;text-align:center}
+  @media(max-width:600px){th,td{padding:8px 10px;font-size:.8rem}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🔔 <span>リコール監視</span>アプリ — データ公開</h1>
+    <div class="meta" id="meta">読み込み中…</div>
+    <div id="badges"></div>
+  </header>
+  <div id="content"><div class="empty"><strong>読み込み中…</strong>リコール情報を取得しています</div></div>
+  <footer>データ提供: 国土交通省 リコール・改善対策 届出情報 / このページは自動生成されたアプリ用フィードの補助ページです</footer>
+</div>
+<script>
+fetch('./recalls.json').then(r=>r.json()).then(d=>{
+  const recs = d.recalls || [];
+  document.getElementById('meta').textContent = '最終更新: ' + (d.feed_updated_at || d.generated_at || '-');
+  document.getElementById('badges').innerHTML =
+    '<span class="badge">' + recs.length + ' 件</span>' +
+    '<span class="badge">' + (d.diff && d.diff.new_count ? '新規 ' + d.diff.new_count + ' 件' : '新規 0 件') + '</span>';
+  if(!recs.length){
+    document.getElementById('content').innerHTML = '<div class="empty"><strong>リコール情報がありません</strong>まだデータが公開されていないか、取得が完了していません。</div>';
+    return;
+  }
+  let h = '<table><thead><tr><th>届出日</th><th>メーカー</th><th>件名</th><th>対象型式</th></tr></thead><tbody>';
+  for(const r of recs){
+    const types = (r.affected||[]).flatMap(a=>a.type_codes||[]).join(' / ') || '-';
+    const vinNote = (r.affected||[]).map(a=>a.vin_prefix+(a.vin_start?'-'+a.vin_start+' 〜 '+a.vin_prefix+'-'+a.vin_end:'')).join('<br>');
+    h += '<tr><td class="date">' + (r.published_at||'-') + '</td><td class="maker">' + (r.maker||'-') + '</td><td>' + (r.title||'') + '<div class="vin">' + vinNote + '</div></td><td class="type">' + types + '</td></tr>';
+  }
+  h += '</tbody></table>';
+  document.getElementById('content').innerHTML = h;
+}).catch(e=>{
+  document.getElementById('content').innerHTML = '<div class="empty"><strong>データを取得できませんでした</strong>' + e.message + '</div>';
+});
+</script>
+</body>
+</html>
