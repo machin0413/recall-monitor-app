@@ -205,9 +205,13 @@ def main(argv=None):
     else:
         rows = fetch_feed(limit=args.limit)
         if not rows:
-            print("WARNING: 実データ取得に失敗。サンプルで代替します", file=sys.stderr)
-            with open(SAMPLE_JSON, encoding="utf-8") as f:
-                recalls = json.load(f)["recalls"]
+            prev = load_previous()
+            if prev:
+                print("WARNING: 実データ取得に失敗。サンプルで上書きせず、前回データを維持します", file=sys.stderr)
+                recalls = prev
+            else:
+                print("ERROR: 実データ取得に失敗し、前回データもありません。生成を中止します", file=sys.stderr)
+                sys.exit(1)
         else:
             recalls = [attach_detail(extract_recall_from_row(r)) for r in rows]
             # 詳細ページ取得が重い場合は絞る(直近20件のみ補完を試行)
