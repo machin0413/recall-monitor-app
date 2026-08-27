@@ -1,0 +1,56 @@
+name: fetch-recalls
+
+on:
+  schedule:
+    # 毎日 07:20 JST (22:20 UTC) に実行
+    - cron: "20 22 * * *"
+  workflow_dispatch:   # 手動実行も可能
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fetch-recalls
+  cancel-in-progress: true
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: リコールデータ取得・差分検出・JSON生成
+        run: |
+          cd backend
+          python3 fetch_recalls.py
+
+      - name: 差分があれば通知用メタを出力
+        id: diff
+        run: |
+          cd backend
+          NEW=$(python3 -c "import json;print(json.load(open('../site/recalls.json'))['diff']['new_count'])")
+          echo "new_count=$NEW" >> "$GITHUB_OUTPUT"
+
+      - name: gh-pages ブランチへデプロイ（静的JSON公開）
+        if: always()
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          publish_branch: gh-pages
+          force_orphan: true
+          user_name: "github-actions[bot]"
+          user_email: "github-actions[bot]@users.noreply.github.com"
+
+      # 将来: プッシュ通知サーバー(APNs/FCM)を立てた場合はここから送信
+      # - name: 新規リコールをプッシュ通知
+      #   run: python3 push_new_recalls.py
+      #   env:
+      #     APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
+      #     ...

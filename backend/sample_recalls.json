@@ -1,0 +1,30 @@
+{
+  "generated_at": "2026-08-27T09:00:00+09:00",
+  "feed_updated_at": "2026-08-27",
+  "diff": { "new_count": 0, "new_ids": [] },
+  "_note": "サンプルデータ（検証・開発用の架空例）。実際の取得は GitHub Actions が国交省 renrakuda から行う。",
+  "recalls": [
+    {
+      "recall_id": "SAMPLE-2026-0001",
+      "maker": "サンプル自動車",
+      "title": "ハイブリッド制御ユニットの不具合（サンプル）",
+      "published_at": "2026-08-20",
+      "content": "油圧制御の誤作動により走行不能となるおそれがある。サンプル用の架空データ。",
+      "affected": [
+        { "type_codes": ["DAA-ZVW50", "ZVW50"], "vin_prefix": "ZVW50", "vin_start": "0000001", "vin_end": "0123456" }
+      ],
+      "page_url": "https://example.com/recall/1"
+    },
+    {
+      "recall_id": "SAMPLE-2026-0002",
+      "maker": "サンプル自動車",
+      "title": "助手席エアバッグの展開不良（サンプル）",
+      "published_at": "2026-08-12",
+      "content": "エアバッグ展開時に異常が生じるおそれがある。サンプル用の架空データ。",
+      "affected": [
+        { "type_codes": ["CBA-A200A", "A200A"], "vin_prefix": "A200A", "vin_start": "0000001", "vin_end": "0055000" }
+      ],
+      "page_url": "https://example.com/recall/2"
+    }
+  ]
+}
