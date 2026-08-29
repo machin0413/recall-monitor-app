@@ -9,12 +9,12 @@ Usage:
 """
 import gzip
 import io
-import json
 import re
 import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+import zlib
 
 BASE = "https://renrakuda.mlit.go.jp/renrakuda/"
 UA = {
@@ -26,6 +26,20 @@ UA = {
 }
 
 
+def _decode(raw: bytes, encoding: str) -> str:
+    if encoding == "gzip":
+        try:
+            raw = gzip.GzipFile(fileobj=io.BytesIO(raw)).read()
+        except OSError:
+            pass
+    elif encoding == "deflate":
+        try:
+            raw = zlib.decompress(raw, -zlib.MAX_WBITS)
+        except zlib.error:
+            pass
+    return raw.decode("utf-8", "replace")
+
+
 def get(url: str, referer: str = "", timeout: int = 45):
     """(status, final_url, body_text) を返す。例外は握り潰して status に文字列を入れる。"""
     headers = dict(UA)
@@ -34,95 +48,55 @@ def get(url: str, referer: str = "", timeout: int = 45):
     req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as res:
-            raw = res.read()
-            if res.headers.get("Content-Encoding") == "gzip":
-                raw = gzip.GzipFile(fileobj=io.BytesIO(raw)).read()
-            return res.status, res.geturl(), raw.decode("utf-8", "replace")
+            return res.status, res.geturl(), _decode(res.read(), res.headers.get("Content-Encoding", ""))
     except urllib.error.HTTPError as e:
-        return e.code, url, (e.read() or b"").decode("utf-8", "replace")
+        return e.code, url, _decode(e.read() or b"", e.headers.get("Content-Encoding", ""))
     except Exception as e:  # URLError / timeout / TLS など
         return f"EXC:{type(e).__name__}:{e}", url, ""
 
 
-def show(label: str, url: str, referer: str = "", head: int = 400):
+def dump(label: str, url: str, referer: str = ""):
     st, final, body = get(url, referer)
-    print(f"\n--- {label}")
-    print(f"    url    : {url}")
-    print(f"    status : {st}  len={len(body)}  final={final}")
-    if body:
-        print(f"    head   : {body[:head]!r}")
+    print(f"\n{'=' * 70}\n### {label}\n    url={url}\n    status={st} len={len(body)} final={final}\n{'=' * 70}")
     return body
 
 
 def main():
-    print("=" * 70)
-    print("STEP 1: トップ／検索ページの到達性")
-    print("=" * 70)
-    pages = [
-        ("top", BASE),
-        ("search-car", BASE + "ris-search-car.html"),
-        ("detail-car", BASE + "ris-detail-car.html"),
-    ]
-    html_by_name = {}
-    for name, url in pages:
-        html_by_name[name] = show(name, url)
+    # --- 1) トップページのリンクから検索ページの実 URL を探す ---
+    top = dump("top.html", BASE)
+    links = sorted({urllib.parse.urljoin(BASE, h) for h in
+                    re.findall(r'<a[^>]+href=["\']([^"\'#]+)["\']', top, re.I)
+                    if h.endswith(".html")})
+    print("トップページ内の .html リンク:")
+    for l in links:
+        print("   ", l)
 
-    print("\n" + "=" * 70)
-    print("STEP 2: フロント JS を収集して API 呼び出し箇所を抽出")
-    print("=" * 70)
-    scripts = []
-    for name, html in html_by_name.items():
-        for m in re.findall(r'<script[^>]+src=["\']([^"\']+)["\']', html or "", re.I):
-            scripts.append(urllib.parse.urljoin(BASE, m))
-    scripts = list(dict.fromkeys(scripts))
-    print(f"検出 script: {len(scripts)} 件")
-    for s in scripts:
-        print("   ", s)
+    # 検索系ページの候補を実際に叩いて生存確認
+    print("\n検索ページ候補の生存確認:")
+    search_pages = [l for l in links if "search" in l or "ris-" in l]
+    for l in search_pages:
+        st, _, body = get(l, referer=BASE)
+        print(f"    {st:>6}  len={len(body):>7}  {l}")
 
-    keywords = ("cgi", "estraier", "selCarTp", "recall_data_car", "notification_date",
-                "ajax", "offset", "limit")
-    for s in scripts:
-        st, _, js = get(s, referer=BASE)
-        if not js:
-            print(f"\n[js] {s} -> status={st} (本文なし)")
+    # --- 2) API 契約が書かれている JS を全文ダンプ ---
+    for js_url in [
+        BASE + "common/assets/js/lib/utils.js",
+        BASE + "common/assets/js/pages/ris-detail-car.js",
+    ]:
+        body = dump(js_url.rsplit("/", 1)[-1] + " 全文", js_url, referer=BASE)
+        print(body)
+
+    # --- 3) 検索ページ固有 JS を探して全文ダンプ ---
+    for page in search_pages:
+        st, _, html = get(page, referer=BASE)
+        if not isinstance(st, int) or st != 200:
             continue
-        hits = [k for k in keywords if k in js]
-        print(f"\n[js] {s} -> status={st} len={len(js)} hits={hits}")
-        if not hits:
-            continue
-        # API 呼び出し周辺を抜き出す
-        for m in re.finditer(r"[^\n]{0,160}(?:\.cgi|estraier|selCarTp)[^\n]{0,240}", js):
-            line = re.sub(r"\s+", " ", m.group(0)).strip()
-            print("      >", line[:400])
-
-    print("\n" + "=" * 70)
-    print("STEP 3: 想定 API エンドポイントを直接叩く")
-    print("=" * 70)
-    candidates = [
-        ("mt-estraier 全件", BASE + "mt/mt-estraier.cgi?" + urllib.parse.urlencode({
-            "selCarTp": "1", "offset": "1", "limit": "5",
-            "order_by": "notification_date", "order_condition": "desc"})),
-        ("mt-estraier 素", BASE + "mt/mt-estraier.cgi?selCarTp=1"),
-        ("mt-search", BASE + "mt/mt-search.cgi?selCarTp=1&offset=1&limit=5"),
-        ("mt-estraier ルート直下", BASE + "mt-estraier.cgi?selCarTp=1&offset=1&limit=5"),
-    ]
-    for label, url in candidates:
-        body = show(label, url, referer=BASE + "ris-search-car.html", head=1500)
-        if body.lstrip().startswith(("{", "[")):
-            try:
-                data = json.loads(body)
-            except json.JSONDecodeError as e:
-                print(f"    JSON解釈失敗: {e}")
-                continue
-            print(f"    JSON OK: type={type(data).__name__}")
-            if isinstance(data, dict):
-                print(f"    top-level keys: {list(data)[:20]}")
-                rows = data.get("data")
-                if isinstance(rows, list) and rows:
-                    print(f"    data件数: {len(rows)}")
-                    print("    1件目のキー:")
-                    for k, v in list(rows[0].items())[:60]:
-                        print(f"      {k} = {str(v)[:80]!r}")
+        page_js = [urllib.parse.urljoin(BASE, s)
+                   for s in re.findall(r'<script[^>]+src=["\']([^"\']+)["\']', html, re.I)
+                   if "/pages/" in s]
+        for js_url in page_js:
+            body = dump(f"{page} の固有JS: {js_url}", js_url, referer=page)
+            print(body)
 
     print("\n完了")
 
