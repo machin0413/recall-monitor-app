@@ -8,7 +8,6 @@ on:
       - claude/app-development-hhbu4f
     paths:
       - backend/probe_api.py
-      - backend/probe_browser.py
       - .github/workflows/probe-api.yml
   workflow_dispatch:
 
@@ -27,11 +26,3 @@ jobs:
 
       - name: renrakuda API 調査
         run: python3 backend/probe_api.py
-
-      - name: Playwright 準備
-        run: |
-          pip install --quiet playwright
-          playwright install --with-deps chromium
-
-      - name: 実ブラウザからの到達性を確認
-        run: python3 backend/probe_browser.py
