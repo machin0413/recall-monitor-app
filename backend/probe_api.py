@@ -62,51 +62,78 @@ def dump(label: str, url: str, referer: str = ""):
     return body
 
 
-def try_api(label: str, params: dict, show_keys: bool = False):
-    url = BASE + "mt/mt-estraier.cgi?" + urllib.parse.urlencode(params)
-    st, _, body = get(url, referer=BASE + "ris-search-result-car.html", timeout=120)
-    print(f"\n[{label}] status={st} len={len(body)}")
-    print(f"    {url}")
-    if not body:
-        return None
-    # フロント同様、末尾の余分なカンマを除去してから JSON 解釈する
-    text = re.sub(r",\s*(\]\s*\}\s*)$", r"\1", body.strip())
+API = BASE + "mt/mt-estraier.cgi"
+SEARCH_PAGE = BASE + "ris-search-result-car.html"
+PARAMS = {
+    "blog_id": "4",
+    "class": "recalldatacar",
+    "notification_date": "0000/00/00 9999/12/31",
+    "offset": "1",
+    "limit": "2",
+    "order_by": "recall_data_car_mlit_notification_date",
+    "order_condition": "STRD",
+}
+
+
+def attempt(label: str, headers: dict, opener=None, params: dict = None):
+    """ヘッダ条件を変えて API を叩き、レスポンスヘッダまで含めて出力する。"""
+    url = API + "?" + urllib.parse.urlencode(params or PARAMS)
+    req = urllib.request.Request(url, headers=headers)
+    op = opener or urllib.request.build_opener()
+    print(f"\n--- {label}")
     try:
-        data = json.loads(text)
-    except json.JSONDecodeError as e:
-        print(f"    JSON解釈失敗: {e} / head={body[:400]!r}")
-        return None
-    rows = data.get("data") if isinstance(data, dict) else None
-    print(f"    top-level keys={list(data)[:10]} rows={len(rows) if isinstance(rows, list) else 'N/A'}")
-    if isinstance(rows, list) and rows and show_keys:
-        print("    ★ 1件目 全キー:")
-        for k, v in rows[0].items():
-            print(f"      {k} = {str(v)[:200]!r}")
-    return rows
+        with op.open(req, timeout=60) as res:
+            raw = res.read()
+            print(f"    status={res.status} bytes={len(raw)}")
+            for k, v in res.headers.items():
+                print(f"      {k}: {v}")
+            body = _decode(raw, res.headers.get("Content-Encoding", ""))
+            print(f"    body[:300]={body[:300]!r}")
+            return body
+    except urllib.error.HTTPError as e:
+        raw = e.read() or b""
+        print(f"    HTTPError status={e.code} bytes={len(raw)}")
+        for k, v in e.headers.items():
+            print(f"      {k}: {v}")
+        print(f"    body[:300]={_decode(raw, e.headers.get('Content-Encoding', ''))[:300]!r}")
+    except Exception as e:
+        print(f"    EXC {type(e).__name__}: {e}")
+    return ""
 
 
 def main():
-    """フロント JS から確定した契約でリコール API を叩き、レスポンス構造を確認する。"""
-    base = {
-        "blog_id": "4",
-        "class": "recalldatacar",
-        "notification_date": "0000/00/00 9999/12/31",
-        "order_by": "recall_data_car_mlit_notification_date",
-        "order_condition": "STRD",
+    """CGI が空を返す原因（ヘッダ/Cookie/エンコーディング）を切り分ける。"""
+    browser = {
+        "User-Agent": UA["User-Agent"],
+        "Accept": "application/json",
+        "Accept-Language": "ja,en-US;q=0.9",
+        "Referer": SEARCH_PAGE,
+        "Origin": "https://renrakuda.mlit.go.jp",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-origin",
     }
-    try_api("確定契約 limit=2", {**base, "offset": "1", "limit": "2"}, show_keys=True)
 
-    rows = try_api("全件 limit=100000", {**base, "offset": "1", "limit": "100000"})
-    if rows:
-        print(f"\n★ 全件数 = {len(rows)} / count フィールド = {rows[0].get('count')}")
-        # 型リストの構造を 1 件だけ詳しく見る
-        for r in rows[:40]:
-            tl = r.get("typeList") or []
-            if tl:
-                print("\n★ typeList[0] の中身:")
-                for k, v in tl[0].items():
-                    print(f"      {k} = {str(v)[:200]!r}")
-                break
+    attempt("1) Accept:application/json のみ", {"Accept": "application/json"})
+    attempt("2) ブラウザ相当ヘッダ(gzipなし)", browser)
+    attempt("3) ブラウザ相当 + gzip", {**browser, "Accept-Encoding": "gzip, deflate"})
+    attempt("4) X-Requested-With 付き", {**browser, "X-Requested-With": "XMLHttpRequest"})
+    attempt("5) User-Agent なし", {k: v for k, v in browser.items() if k != "User-Agent"})
+
+    # 6) セッション Cookie を取得してから叩く
+    import http.cookiejar
+    jar = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+    for page in (BASE, BASE + "recall-search.html", SEARCH_PAGE):
+        try:
+            opener.open(urllib.request.Request(page, headers={"User-Agent": UA["User-Agent"]}), timeout=45).read()
+        except Exception as e:
+            print(f"    (先行アクセス失敗 {page}: {e})")
+    print(f"\n取得できた Cookie: {[c.name for c in jar]}")
+    attempt("6) Cookie 付き", browser, opener=opener)
+
+    # 7) 極小パラメータ（class と blog_id だけ）
+    attempt("7) 最小パラメータ", browser, params={"blog_id": "4", "class": "recalldatacar", "limit": "1", "offset": "1"})
     print("\n完了")
 
 
