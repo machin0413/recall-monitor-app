@@ -62,42 +62,14 @@ def dump(label: str, url: str, referer: str = ""):
 
 
 def main():
-    # --- 1) トップページのリンクから検索ページの実 URL を探す ---
-    top = dump("top.html", BASE)
-    links = sorted({urllib.parse.urljoin(BASE, h) for h in
-                    re.findall(r'<a[^>]+href=["\']([^"\'#]+)["\']', top, re.I)
-                    if h.endswith(".html")})
-    print("トップページ内の .html リンク:")
-    for l in links:
-        print("   ", l)
-
-    # 検索系ページの候補を実際に叩いて生存確認
-    print("\n検索ページ候補の生存確認:")
-    search_pages = [l for l in links if "search" in l or "ris-" in l]
-    for l in search_pages:
-        st, _, body = get(l, referer=BASE)
-        print(f"    {st:>6}  len={len(body):>7}  {l}")
-
-    # --- 2) API 契約が書かれている JS を全文ダンプ ---
-    for js_url in [
+    """API 契約が書かれた JS 2 本だけを全文出力する（ログ末尾が切れないよう最小限）。"""
+    targets = [
+        BASE + "common/assets/js/pages/ris-search-result-car.js",
         BASE + "common/assets/js/lib/utils.js",
-        BASE + "common/assets/js/pages/ris-detail-car.js",
-    ]:
-        body = dump(js_url.rsplit("/", 1)[-1] + " 全文", js_url, referer=BASE)
+    ]
+    for js_url in targets:
+        body = dump(js_url.rsplit("/", 1)[-1], js_url, referer=BASE)
         print(body)
-
-    # --- 3) 検索ページ固有 JS を探して全文ダンプ ---
-    for page in search_pages:
-        st, _, html = get(page, referer=BASE)
-        if not isinstance(st, int) or st != 200:
-            continue
-        page_js = [urllib.parse.urljoin(BASE, s)
-                   for s in re.findall(r'<script[^>]+src=["\']([^"\']+)["\']', html, re.I)
-                   if "/pages/" in s]
-        for js_url in page_js:
-            body = dump(f"{page} の固有JS: {js_url}", js_url, referer=page)
-            print(body)
-
     print("\n完了")
 
 
