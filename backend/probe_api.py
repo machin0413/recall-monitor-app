@@ -62,56 +62,51 @@ def dump(label: str, url: str, referer: str = ""):
     return body
 
 
-def grep(body: str, label: str, pattern: str, before: int = 4, after: int = 14):
-    """該当行の前後だけを出力する（ログ末尾が切れるのを避けるため）。"""
-    lines = body.splitlines()
-    hits = [i for i, ln in enumerate(lines) if re.search(pattern, ln)]
-    shown = set()
-    print(f"\n### {label}: /{pattern}/ 該当 {len(hits)} 行")
-    for i in hits:
-        for j in range(max(0, i - before), min(len(lines), i + after + 1)):
-            if j not in shown:
-                shown.add(j)
-                print(f"  {j + 1:>4}| {lines[j]}")
-        print("  ----")
-
-
-def try_api(label: str, params: dict):
+def try_api(label: str, params: dict, show_keys: bool = False):
     url = BASE + "mt/mt-estraier.cgi?" + urllib.parse.urlencode(params)
-    st, _, body = get(url, referer=BASE + "ris-search-result-car.html")
+    st, _, body = get(url, referer=BASE + "ris-search-result-car.html", timeout=120)
     print(f"\n[{label}] status={st} len={len(body)}")
     print(f"    {url}")
     if not body:
-        return
-    text = re.sub(r",\s*(\]\s*\}\s*)$", r"\1", body)
+        return None
+    # フロント同様、末尾の余分なカンマを除去してから JSON 解釈する
+    text = re.sub(r",\s*(\]\s*\}\s*)$", r"\1", body.strip())
     try:
         data = json.loads(text)
     except json.JSONDecodeError as e:
-        print(f"    JSON解釈失敗: {e} / head={body[:300]!r}")
-        return
+        print(f"    JSON解釈失敗: {e} / head={body[:400]!r}")
+        return None
     rows = data.get("data") if isinstance(data, dict) else None
     print(f"    top-level keys={list(data)[:10]} rows={len(rows) if isinstance(rows, list) else 'N/A'}")
-    if isinstance(rows, list) and rows:
-        print("    ★ 1件目のキーと値:")
+    if isinstance(rows, list) and rows and show_keys:
+        print("    ★ 1件目 全キー:")
         for k, v in rows[0].items():
-            print(f"      {k} = {str(v)[:120]!r}")
+            print(f"      {k} = {str(v)[:200]!r}")
+    return rows
 
 
 def main():
-    utils = get(BASE + "common/assets/js/lib/utils.js", referer=BASE)[2]
-    result_js = get(BASE + "common/assets/js/pages/ris-search-result-car.js", referer=BASE)[2]
+    """フロント JS から確定した契約でリコール API を叩き、レスポンス構造を確認する。"""
+    base = {
+        "blog_id": "4",
+        "class": "recalldatacar",
+        "notification_date": "0000/00/00 9999/12/31",
+        "order_by": "recall_data_car_mlit_notification_date",
+        "order_condition": "STRD",
+    }
+    try_api("確定契約 limit=2", {**base, "offset": "1", "limit": "2"}, show_keys=True)
 
-    grep(utils, "utils.js", r"SEARCH_API_CONFIG|RECALL_CLASSES\s*=", before=1, after=22)
-    grep(result_js, "ris-search-result-car.js", r"callSearchApi|class:|blog_id", before=16, after=6)
-
-    base = {"selCarTp": "1", "offset": "1", "limit": "3",
-            "order_by": "notification_date", "order_condition": "desc"}
-    try_api("素", base)
-    try_api("class=recalldatacar", {**base, "class": "recalldatacar"})
-    try_api("class+blog_id", {**base, "class": "recalldatacar", "blog_id": "4"})
-    try_api("class+blog_id+日付", {**base, "class": "recalldatacar", "blog_id": "4",
-                                   "notification_date_from": "0000/00/00",
-                                   "notification_date_to": "9999/12/31"})
+    rows = try_api("全件 limit=100000", {**base, "offset": "1", "limit": "100000"})
+    if rows:
+        print(f"\n★ 全件数 = {len(rows)} / count フィールド = {rows[0].get('count')}")
+        # 型リストの構造を 1 件だけ詳しく見る
+        for r in rows[:40]:
+            tl = r.get("typeList") or []
+            if tl:
+                print("\n★ typeList[0] の中身:")
+                for k, v in tl[0].items():
+                    print(f"      {k} = {str(v)[:200]!r}")
+                break
     print("\n完了")
 
 
