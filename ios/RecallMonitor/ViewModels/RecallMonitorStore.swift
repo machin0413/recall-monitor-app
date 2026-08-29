@@ -10,10 +10,16 @@ import Combine
 final class RecallMonitorStore: ObservableObject {
 
     @Published var recalls: [Recall] = []
-    @Published var matchingByVehicle: [UUID: [Recall]] = [:]
+    @Published var matchesByVehicle: [UUID: [RecallMatch]] = [:]
     @Published var isRefreshing = false
     @Published var lastUpdated: Date?
     @Published var errorMessage: String?
+
+    private let vehicleStore: VehicleStore
+
+    init(vehicleStore: VehicleStore) {
+        self.vehicleStore = vehicleStore
+    }
 
     /// フィードURL（GitHub Pages 公開後、ここを差し替える）
     var feedURLString: String {
@@ -24,15 +30,9 @@ final class RecallMonitorStore: ObservableObject {
     static let defaultFeedURL = "https://machin0413.github.io/recall-monitor-app/recalls.json"
 
     private let seenKey = "notifiedRecallIDs.v1"
-    private let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "ja_JP")
-        f.dateFormat = "yyyy-MM-dd"
-        return f
-    }()
 
     /// フィードを取得し、登録車両との照合と新規通知を行う
-    func refresh(notifyIfNew: Bool, vehicles: [Vehicle] = []) async {
+    func refresh(notifyIfNew: Bool) async {
         guard let url = URL(string: feedURLString) else {
             errorMessage = "フィードURLを設定してください（設定タブ）"
             return
@@ -46,27 +46,30 @@ final class RecallMonitorStore: ObservableObject {
             lastUpdated = Date()
             errorMessage = nil
 
-            var mapping: [UUID: [Recall]] = [:]
+            let vehicles = vehicleStore.vehicles
+            var mapping: [UUID: [RecallMatch]] = [:]
             for vehicle in vehicles {
-                mapping[vehicle.id] = RecallMatcher.recalls(matching: vehicle, in: feed.recalls)
+                mapping[vehicle.id] = RecallMatcher.matches(for: vehicle, in: feed.recalls)
             }
-            matchingByVehicle = mapping
+            matchesByVehicle = mapping
 
             if notifyIfNew {
-                notifyNewMatches(vehicles: vehicles)
+                await notifyNewMatches(vehicles: vehicles)
             }
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    /// 新しくマッチしたリコールにだけ通知する
-    private func notifyNewMatches(vehicles: [Vehicle]) {
+    /// 該当車両ごとの新規リコールだけを通知する（同じ届出は 1 台につき 1 度だけ）
+    private func notifyNewMatches(vehicles: [Vehicle]) async {
         var seen = Set(UserDefaults.standard.stringArray(forKey: seenKey) ?? [])
         for vehicle in vehicles {
-            for recall in matchingByVehicle[vehicle.id] ?? [] where !seen.contains(recall.recallId) {
-                Task { await NotificationManager.post(recall: recall, vehicle: vehicle) }
-                seen.insert(recall.recallId)
+            for match in matchesByVehicle[vehicle.id] ?? [] {
+                let key = "\(vehicle.id.uuidString)|\(match.recall.recallId)"
+                guard !seen.contains(key) else { continue }
+                await NotificationManager.post(match: match, vehicle: vehicle)
+                seen.insert(key)
             }
         }
         UserDefaults.standard.set(Array(seen), forKey: seenKey)
@@ -74,5 +77,11 @@ final class RecallMonitorStore: ObservableObject {
 
     var sortedRecalls: [Recall] {
         recalls.sorted { ($0.publishedAt ?? "") > ($1.publishedAt ?? "") }
+    }
+
+    /// 全登録車両にまたがる該当リコール（重複除去済み）
+    var allMatches: [RecallMatch] {
+        var seen = Set<String>()
+        return matchesByVehicle.values.flatMap { $0 }.filter { seen.insert($0.recall.recallId).inserted }
     }
 }

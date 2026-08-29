@@ -16,27 +16,31 @@ struct RecallMonitorApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(appDelegate.vehicleStore)
                 .environmentObject(appDelegate.monitorStore)
         }
     }
 }
 
+@MainActor
 final class AppDelegate: NSObject, UIApplicationDelegate {
-    let monitorStore = RecallMonitorStore()
-    private let bgManager = BackgroundRefreshManager()
+    /// 登録車両。画面とバックグラウンド更新で同じインスタンスを共有する
+    /// （画面内の @StateObject にすると、バックグラウンド更新から車両を参照できず通知が出ない）。
+    let vehicleStore = VehicleStore()
+    lazy var monitorStore = RecallMonitorStore(vehicleStore: vehicleStore)
 
-    func application(_ application: UIApplication,
-                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        bgManager.register { [weak self] in
-            await self?.monitorStore.refresh(notifyIfNew: true)
-        }
-        Task {
-            await monitorStore.refresh(notifyIfNew: false)
+    nonisolated func application(_ application: UIApplication,
+                                didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        MainActor.assumeIsolated {
+            BackgroundRefreshManager.register { [monitorStore] in
+                await monitorStore.refresh(notifyIfNew: true)
+            }
+            BackgroundRefreshManager.scheduleNextRefresh()
         }
         return true
     }
 
-    func applicationDidEnterBackground(_ application: UIApplication) {
-        bgManager.scheduleNextRefresh()
+    nonisolated func applicationDidEnterBackground(_ application: UIApplication) {
+        BackgroundRefreshManager.scheduleNextRefresh()
     }
 }

@@ -8,25 +8,30 @@ import UserNotifications
 
 enum NotificationManager {
 
-    static func requestAuthorizationIfNeeded() async {
+    @discardableResult
+    static func requestAuthorizationIfNeeded() async -> Bool {
         let center = UNUserNotificationCenter.current()
-        do {
-            _ = try await center.requestAuthorization(options: [.alert, .sound, .badge])
-        } catch {
-            // 拒否でもアプリは使える（設定画面から再要求可能）
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .notDetermined else {
+            return settings.authorizationStatus == .authorized
         }
+        // 拒否されてもアプリは使える（設定アプリから後で許可できる）
+        return (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
     }
 
     /// 新規リコールのローカル通知を出す
-    static func post(recall: Recall, vehicle: Vehicle) async {
+    static func post(match: RecallMatch, vehicle: Vehicle) async {
         let content = UNMutableNotificationContent()
-        content.title = "【リコール】\(vehicle.name)"
-        content.body = "\(recall.maker) \(recall.title)"
+        content.title = match.confidence == .confirmed
+            ? "【リコール該当】\(vehicle.name)"
+            : "【リコール要確認】\(vehicle.name)"
+        content.body = "\(match.recall.maker) \(match.recall.title)"
         content.sound = .default
-        content.userInfo = ["recall_id": recall.recallId]
+        content.userInfo = ["recall_id": match.recall.recallId,
+                            "vehicle_id": vehicle.id.uuidString]
 
         let request = UNNotificationRequest(
-            identifier: "recall-\(recall.recallId)",
+            identifier: "recall-\(vehicle.id.uuidString)-\(match.recall.recallId)",
             content: content,
             trigger: nil
         )

@@ -1,11 +1,13 @@
 //
 //  VehicleStore.swift
 //  登録車両の永続化（UserDefaults + JSON）。
+//  アプリ起動時に AppDelegate が生成し、画面とバックグラウンド更新の双方から参照する。
 //
 
 import Foundation
 import Combine
 
+@MainActor
 final class VehicleStore: ObservableObject {
     @Published var vehicles: [Vehicle] {
         didSet { save() }

@@ -62,65 +62,69 @@ def dump(label: str, url: str, referer: str = ""):
     return body
 
 
-def probe(label: str, url: str, method: str = "GET", data: bytes = None, referer: str = ""):
-    headers = dict(UA)
-    if referer:
-        headers["Referer"] = referer
-    if data is not None:
-        headers["Content-Type"] = "application/x-www-form-urlencoded"
-    req = urllib.request.Request(url, data=data, headers=headers, method=method)
-    print(f"\n--- {label}")
-    print(f"    {method} {url}")
+# ENDPOINT はサイトルート相対。/renrakuda/ を挟むと 200 で空応答になるので注意。
+API = "https://renrakuda.mlit.go.jp/mt/mt-estraier.cgi"
+
+
+def fetch(params: dict, timeout: int = 180):
+    url = API + "?" + urllib.parse.urlencode(params)
+    st, _, body = get(url, referer=BASE + "ris-search-result-car.html", timeout=timeout)
+    print(f"\nGET {url}\n  status={st} len={len(body)}")
+    if not body:
+        return None
+    # MT テンプレート由来の前後の空白と、末尾の余分なカンマを取り除いてから解釈する
+    text = re.sub(r",\s*(\]\s*\}\s*)$", r"\1", body.strip())
     try:
-        with urllib.request.urlopen(req, timeout=60) as res:
-            body = _decode(res.read(), res.headers.get("Content-Encoding", ""))
-            ctype = res.headers.get("Content-Type", "")
-            print(f"    status={res.status} len={len(body)} type={ctype} final={res.geturl()}")
-            if body:
-                head_text = re.sub(r"\s+", " ", body[:400])
-                print("    head=" + repr(head_text))
-            return body
-    except urllib.error.HTTPError as e:
-        print(f"    HTTPError {e.code}")
-    except Exception as e:
-        print(f"    EXC {type(e).__name__}: {e}")
-    return ""
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        print(f"  JSON解釈失敗: {e}")
+        print(f"  tail={text[-300:]!r}")
+        return None
 
 
 def main():
-    """renrakuda の CGI が使えない前提で、代替データソースの到達性を確かめる。"""
-    print("=" * 70)
-    print("A) renrakuda CGI: GET 以外の方法")
-    print("=" * 70)
-    api = BASE + "mt/mt-estraier.cgi"
-    q = urllib.parse.urlencode({
-        "blog_id": "4", "class": "recalldatacar",
+    """正しいエンドポイントでレスポンス構造を確定させる。"""
+    base = {
+        "blog_id": "4",
+        "class": "recalldatacar",
         "notification_date": "0000/00/00 9999/12/31",
-        "offset": "1", "limit": "2",
         "order_by": "recall_data_car_mlit_notification_date",
-        "order_condition": "STRD"})
-    probe("POST 形式", api, method="POST", data=q.encode(), referer=BASE)
-    probe("末尾スラッシュ付き PATH_INFO", api + "/?" + q, referer=BASE)
+        "order_condition": "STRD",
+    }
 
-    print("\n" + "=" * 70)
-    print("B) 代替データソースの到達性")
-    print("=" * 70)
-    candidates = [
-        ("旧オープンデータ(carinf)", "https://carinf.mlit.go.jp/jidosha/carinf/opendata/"),
-        ("carinf トップ", "https://carinf.mlit.go.jp/jidosha/carinf/"),
-        ("MLIT リコール情報", "https://www.mlit.go.jp/jidosha/carinf/rcl/"),
-        ("MLIT 自動車トップ", "https://www.mlit.go.jp/jidosha/"),
-        ("e-Gov データカタログ検索", "https://www.data.go.jp/data/dataset?q=%E3%83%AA%E3%82%B3%E3%83%BC%E3%83%AB"),
-    ]
-    for label, url in candidates:
-        body = probe(label, url)
-        if body:
-            files = re.findall(r'href=["\']([^"\']+\.(?:csv|zip|xlsx?|json|xml))["\']', body, re.I)
-            if files:
-                print(f"    ★ データファイルらしきリンク {len(files)} 件:")
-                for f in dict.fromkeys(files):
-                    print("      ", urllib.parse.urljoin(url, f))
+    data = fetch({**base, "offset": "1", "limit": "1"})
+    if not data:
+        print("取得失敗。")
+        return 1
+    rows = data.get("data") or []
+    print(f"  rows={len(rows)}")
+    r = rows[0]
+    print("\n★ 届出レコードのキー（typeList 以外）:")
+    for k, v in r.items():
+        if k.startswith("typeList"):
+            print(f"  {k} = <list len={len(v) if isinstance(v, list) else '?'}>")
+        else:
+            print(f"  {k} = {str(v)[:300]!r}")
+
+    tl = []
+    for k, v in r.items():
+        if k.startswith("typeList") and isinstance(v, list):
+            tl.extend(v)
+    print(f"\n★ typeList 合計 {len(tl)} 件。先頭 1 件の中身:")
+    if tl:
+        for k, v in tl[0].items():
+            if isinstance(v, list):
+                print(f"  {k} = <list len={len(v)}> 先頭={v[0] if v else None}")
+            else:
+                print(f"  {k} = {str(v)[:300]!r}")
+
+    print("\n--- 全件取得の所要と件数を確認 ---")
+    full = fetch({**base, "offset": "1", "limit": "100000"})
+    if full:
+        frows = full.get("data") or []
+        print(f"★ 全件 = {len(frows)} 件 / count = {frows[0].get('count') if frows else None}")
     print("\n完了")
+    return 0
 
 
 if __name__ == "__main__":
