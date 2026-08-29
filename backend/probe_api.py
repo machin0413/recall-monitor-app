@@ -9,6 +9,7 @@ Usage:
 """
 import gzip
 import io
+import json
 import re
 import sys
 import urllib.error
@@ -61,15 +62,56 @@ def dump(label: str, url: str, referer: str = ""):
     return body
 
 
+def grep(body: str, label: str, pattern: str, before: int = 4, after: int = 14):
+    """該当行の前後だけを出力する（ログ末尾が切れるのを避けるため）。"""
+    lines = body.splitlines()
+    hits = [i for i, ln in enumerate(lines) if re.search(pattern, ln)]
+    shown = set()
+    print(f"\n### {label}: /{pattern}/ 該当 {len(hits)} 行")
+    for i in hits:
+        for j in range(max(0, i - before), min(len(lines), i + after + 1)):
+            if j not in shown:
+                shown.add(j)
+                print(f"  {j + 1:>4}| {lines[j]}")
+        print("  ----")
+
+
+def try_api(label: str, params: dict):
+    url = BASE + "mt/mt-estraier.cgi?" + urllib.parse.urlencode(params)
+    st, _, body = get(url, referer=BASE + "ris-search-result-car.html")
+    print(f"\n[{label}] status={st} len={len(body)}")
+    print(f"    {url}")
+    if not body:
+        return
+    text = re.sub(r",\s*(\]\s*\}\s*)$", r"\1", body)
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as e:
+        print(f"    JSON解釈失敗: {e} / head={body[:300]!r}")
+        return
+    rows = data.get("data") if isinstance(data, dict) else None
+    print(f"    top-level keys={list(data)[:10]} rows={len(rows) if isinstance(rows, list) else 'N/A'}")
+    if isinstance(rows, list) and rows:
+        print("    ★ 1件目のキーと値:")
+        for k, v in rows[0].items():
+            print(f"      {k} = {str(v)[:120]!r}")
+
+
 def main():
-    """API 契約が書かれた JS 2 本だけを全文出力する（ログ末尾が切れないよう最小限）。"""
-    targets = [
-        BASE + "common/assets/js/pages/ris-search-result-car.js",
-        BASE + "common/assets/js/lib/utils.js",
-    ]
-    for js_url in targets:
-        body = dump(js_url.rsplit("/", 1)[-1], js_url, referer=BASE)
-        print(body)
+    utils = get(BASE + "common/assets/js/lib/utils.js", referer=BASE)[2]
+    result_js = get(BASE + "common/assets/js/pages/ris-search-result-car.js", referer=BASE)[2]
+
+    grep(utils, "utils.js", r"SEARCH_API_CONFIG|RECALL_CLASSES\s*=", before=1, after=22)
+    grep(result_js, "ris-search-result-car.js", r"callSearchApi|class:|blog_id", before=16, after=6)
+
+    base = {"selCarTp": "1", "offset": "1", "limit": "3",
+            "order_by": "notification_date", "order_condition": "desc"}
+    try_api("素", base)
+    try_api("class=recalldatacar", {**base, "class": "recalldatacar"})
+    try_api("class+blog_id", {**base, "class": "recalldatacar", "blog_id": "4"})
+    try_api("class+blog_id+日付", {**base, "class": "recalldatacar", "blog_id": "4",
+                                   "notification_date_from": "0000/00/00",
+                                   "notification_date_to": "9999/12/31"})
     print("\n完了")
 
 
