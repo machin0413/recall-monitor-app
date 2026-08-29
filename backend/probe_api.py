@@ -77,7 +77,8 @@ def probe(label: str, url: str, method: str = "GET", data: bytes = None, referer
             ctype = res.headers.get("Content-Type", "")
             print(f"    status={res.status} len={len(body)} type={ctype} final={res.geturl()}")
             if body:
-                print(f"    head={re.sub(r'[ \t]+', ' ', body[:400])!r}")
+                head_text = re.sub(r"\s+", " ", body[:400])
+                print("    head=" + repr(head_text))
             return body
     except urllib.error.HTTPError as e:
         print(f"    HTTPError {e.code}")
