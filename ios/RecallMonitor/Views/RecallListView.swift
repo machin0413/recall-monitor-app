@@ -8,12 +8,15 @@ import SwiftUI
 struct RecallListView: View {
     @EnvironmentObject private var monitorStore: RecallMonitorStore
 
-    private var relevantIDs: Set<String> {
-        var ids = Set<String>()
-        for recalls in monitorStore.matchingByVehicle.values {
-            for r in recalls { ids.insert(r.recallId) }
+    private var confidenceByRecallID: [String: MatchConfidence] {
+        var result: [String: MatchConfidence] = [:]
+        for match in monitorStore.matchesByVehicle.values.flatMap({ $0 }) {
+            // 1 件でも「対象確定」があればそちらを優先して表示する
+            if result[match.recall.recallId] != .confirmed {
+                result[match.recall.recallId] = match.confidence
+            }
         }
-        return ids
+        return result
     }
 
     var body: some View {
@@ -23,12 +26,13 @@ struct RecallListView: View {
                     ContentUnavailableView(
                         "リコールデータがありません",
                         systemImage: "tray",
-                        description: Text(monitorStore.isRefreshing ? "更新中…" : "「今すぐ更新」で最新データを取得できます")
+                        description: Text(monitorStore.isRefreshing ? "更新中…" : "下に引いて更新してください")
                     )
                 } else {
+                    let confidences = confidenceByRecallID
                     List(monitorStore.sortedRecalls) { recall in
                         NavigationLink(value: recall) {
-                            RecallRow(recall: recall, isRelevant: relevantIDs.contains(recall.recallId))
+                            RecallRow(recall: recall, confidence: confidences[recall.recallId])
                         }
                     }
                     .refreshable {
@@ -51,14 +55,18 @@ struct RecallListView: View {
 
 private struct RecallRow: View {
     let recall: Recall
-    let isRelevant: Bool
+    let confidence: MatchConfidence?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                if isRelevant {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
+            HStack(alignment: .top, spacing: 6) {
+                switch confidence {
+                case .confirmed:
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                case .needsCheck:
+                    Image(systemName: "questionmark.circle.fill").foregroundStyle(.yellow)
+                case .none:
+                    EmptyView()
                 }
                 Text(recall.title)
                     .font(.subheadline.bold())
@@ -67,7 +75,7 @@ private struct RecallRow: View {
             Text(recall.maker)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text("掲示日: \(recall.publishedAt ?? "-")")
+            Text("届出日: \(recall.publishedAt ?? "-")")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }

@@ -6,8 +6,9 @@
 import SwiftUI
 
 struct VehicleListView: View {
-    @ObservedObject var vehicleStore: VehicleStore
+    @EnvironmentObject private var vehicleStore: VehicleStore
     @EnvironmentObject private var monitorStore: RecallMonitorStore
+    @State private var isAddingVehicle = false
 
     var body: some View {
         NavigationStack {
@@ -25,23 +26,30 @@ struct VehicleListView: View {
                                 VehicleRow(vehicle: vehicle)
                             }
                         }
-                        .onDelete(perform: vehicleStore.remove)
+                        .onDelete { vehicleStore.remove(at: $0) }
                     }
                 }
             }
             .navigationTitle("マイカー")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    NavigationLink(value: Vehicle?.none, destination: VehicleEditView(vehicle: nil)) {
-                        Image(systemName: "plus")
+                    Button {
+                        isAddingVehicle = true
+                    } label: {
+                        Label("車両を追加", systemImage: "plus")
                     }
                 }
             }
             .navigationDestination(for: Vehicle.self) { vehicle in
                 VehicleEditView(vehicle: vehicle)
             }
+            .sheet(isPresented: $isAddingVehicle) {
+                NavigationStack {
+                    VehicleEditView(vehicle: nil)
+                }
+                .environmentObject(vehicleStore)
+            }
         }
-        .onReceive(monitorStore.$matchingByVehicle) { _ in }
     }
 }
 
@@ -49,8 +57,8 @@ private struct VehicleRow: View {
     @EnvironmentObject private var monitorStore: RecallMonitorStore
     let vehicle: Vehicle
 
-    private var hitCount: Int {
-        monitorStore.matchingByVehicle[vehicle.id]?.count ?? 0
+    private var matches: [RecallMatch] {
+        monitorStore.matchesByVehicle[vehicle.id] ?? []
     }
 
     var body: some View {
@@ -65,10 +73,11 @@ private struct VehicleRow: View {
                     .foregroundStyle(.tertiary)
             }
             Spacer()
-            if hitCount > 0 {
-                Label("\(hitCount)", systemImage: "exclamationmark.triangle.fill")
+            if !matches.isEmpty {
+                let confirmed = matches.filter { $0.confidence == .confirmed }.count
+                Label("\(matches.count)", systemImage: "exclamationmark.triangle.fill")
                     .font(.subheadline.bold())
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(confirmed > 0 ? .orange : .yellow)
             }
         }
     }

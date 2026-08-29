@@ -4,11 +4,11 @@
 //
 
 import SwiftUI
-import UIKit
 
 struct VehicleEditView: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject private var vehicleStore = VehicleStore()
+    @EnvironmentObject private var vehicleStore: VehicleStore
+    @EnvironmentObject private var monitorStore: RecallMonitorStore
 
     let vehicle: Vehicle?
     @State private var name = ""
@@ -25,8 +25,10 @@ struct VehicleEditView: View {
             Section("車検証の記載") {
                 TextField("型式（例: DAA-ZVW50）", text: $typeCode)
                     .textInputAutocapitalization(.characters)
+                    .autocorrectionDisabled()
                 TextField("車台番号（例: ZVW50-0001234）", text: $vin)
                     .textInputAutocapitalization(.characters)
+                    .autocorrectionDisabled()
             }
             Section(footer: Text("型式・車台番号はお手元の車検証（または車検証アプリ）で確認できます")) {
                 Button("保存") { save() }
@@ -34,6 +36,13 @@ struct VehicleEditView: View {
             }
         }
         .navigationTitle(vehicle == nil ? "車両を追加" : "車両を編集")
+        .toolbar {
+            if vehicle == nil {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("キャンセル") { dismiss() }
+                }
+            }
+        }
         .onAppear(perform: fill)
     }
 
@@ -53,13 +62,14 @@ struct VehicleEditView: View {
             typeCode: typeCode,
             vin: vin
         )
-        if vehicle != nil {
-            if let i = vehicleStore.vehicles.firstIndex(where: { $0.id == newVehicle.id }) {
-                vehicleStore.vehicles[i] = newVehicle
-            }
+        if vehicle != nil,
+           let i = vehicleStore.vehicles.firstIndex(where: { $0.id == newVehicle.id }) {
+            vehicleStore.vehicles[i] = newVehicle
         } else {
             vehicleStore.add(newVehicle)
         }
+        // 登録内容が変わったので、取得済みのフィードで照合をやり直す
+        Task { await monitorStore.refresh(notifyIfNew: false) }
         dismiss()
     }
 }

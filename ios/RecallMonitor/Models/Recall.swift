@@ -20,7 +20,7 @@ struct RecallFeed: Codable {
 }
 
 /// 1件のリコール届出
-struct Recall: Codable, Identifiable, Equatable {
+struct Recall: Codable, Identifiable, Hashable {
     let recallId: String
     let maker: String
     let title: String
@@ -43,7 +43,7 @@ struct Recall: Codable, Identifiable, Equatable {
 }
 
 /// 対象車両（型式コード・車台番号範囲）
-struct AffectedVehicle: Codable, Equatable {
+struct AffectedVehicle: Codable, Hashable {
     let typeCodes: [String]
     let vinPrefix: String
     let vinStart: String
