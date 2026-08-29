@@ -62,78 +62,63 @@ def dump(label: str, url: str, referer: str = ""):
     return body
 
 
-API = BASE + "mt/mt-estraier.cgi"
-SEARCH_PAGE = BASE + "ris-search-result-car.html"
-PARAMS = {
-    "blog_id": "4",
-    "class": "recalldatacar",
-    "notification_date": "0000/00/00 9999/12/31",
-    "offset": "1",
-    "limit": "2",
-    "order_by": "recall_data_car_mlit_notification_date",
-    "order_condition": "STRD",
-}
-
-
-def attempt(label: str, headers: dict, opener=None, params: dict = None):
-    """ヘッダ条件を変えて API を叩き、レスポンスヘッダまで含めて出力する。"""
-    url = API + "?" + urllib.parse.urlencode(params or PARAMS)
-    req = urllib.request.Request(url, headers=headers)
-    op = opener or urllib.request.build_opener()
+def probe(label: str, url: str, method: str = "GET", data: bytes = None, referer: str = ""):
+    headers = dict(UA)
+    if referer:
+        headers["Referer"] = referer
+    if data is not None:
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
     print(f"\n--- {label}")
+    print(f"    {method} {url}")
     try:
-        with op.open(req, timeout=60) as res:
-            raw = res.read()
-            print(f"    status={res.status} bytes={len(raw)}")
-            for k, v in res.headers.items():
-                print(f"      {k}: {v}")
-            body = _decode(raw, res.headers.get("Content-Encoding", ""))
-            print(f"    body[:300]={body[:300]!r}")
+        with urllib.request.urlopen(req, timeout=60) as res:
+            body = _decode(res.read(), res.headers.get("Content-Encoding", ""))
+            ctype = res.headers.get("Content-Type", "")
+            print(f"    status={res.status} len={len(body)} type={ctype} final={res.geturl()}")
+            if body:
+                print(f"    head={re.sub(r'[ \t]+', ' ', body[:400])!r}")
             return body
     except urllib.error.HTTPError as e:
-        raw = e.read() or b""
-        print(f"    HTTPError status={e.code} bytes={len(raw)}")
-        for k, v in e.headers.items():
-            print(f"      {k}: {v}")
-        print(f"    body[:300]={_decode(raw, e.headers.get('Content-Encoding', ''))[:300]!r}")
+        print(f"    HTTPError {e.code}")
     except Exception as e:
         print(f"    EXC {type(e).__name__}: {e}")
     return ""
 
 
 def main():
-    """CGI が空を返す原因（ヘッダ/Cookie/エンコーディング）を切り分ける。"""
-    browser = {
-        "User-Agent": UA["User-Agent"],
-        "Accept": "application/json",
-        "Accept-Language": "ja,en-US;q=0.9",
-        "Referer": SEARCH_PAGE,
-        "Origin": "https://renrakuda.mlit.go.jp",
-        "Sec-Fetch-Dest": "empty",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Site": "same-origin",
-    }
+    """renrakuda の CGI が使えない前提で、代替データソースの到達性を確かめる。"""
+    print("=" * 70)
+    print("A) renrakuda CGI: GET 以外の方法")
+    print("=" * 70)
+    api = BASE + "mt/mt-estraier.cgi"
+    q = urllib.parse.urlencode({
+        "blog_id": "4", "class": "recalldatacar",
+        "notification_date": "0000/00/00 9999/12/31",
+        "offset": "1", "limit": "2",
+        "order_by": "recall_data_car_mlit_notification_date",
+        "order_condition": "STRD"})
+    probe("POST 形式", api, method="POST", data=q.encode(), referer=BASE)
+    probe("末尾スラッシュ付き PATH_INFO", api + "/?" + q, referer=BASE)
 
-    attempt("1) Accept:application/json のみ", {"Accept": "application/json"})
-    attempt("2) ブラウザ相当ヘッダ(gzipなし)", browser)
-    attempt("3) ブラウザ相当 + gzip", {**browser, "Accept-Encoding": "gzip, deflate"})
-    attempt("4) X-Requested-With 付き", {**browser, "X-Requested-With": "XMLHttpRequest"})
-    attempt("5) User-Agent なし", {k: v for k, v in browser.items() if k != "User-Agent"})
-
-    # 6) セッション Cookie を取得してから叩く
-    import http.cookiejar
-    jar = http.cookiejar.CookieJar()
-    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
-    for page in (BASE, BASE + "recall-search.html", SEARCH_PAGE):
-        try:
-            opener.open(urllib.request.Request(page, headers={"User-Agent": UA["User-Agent"]}), timeout=45).read()
-        except Exception as e:
-            print(f"    (先行アクセス失敗 {page}: {e})")
-    print(f"\n取得できた Cookie: {[c.name for c in jar]}")
-    attempt("6) Cookie 付き", browser, opener=opener)
-
-    # 7) 極小パラメータ（class と blog_id だけ）
-    attempt("7) 最小パラメータ", browser, params={"blog_id": "4", "class": "recalldatacar", "limit": "1", "offset": "1"})
+    print("\n" + "=" * 70)
+    print("B) 代替データソースの到達性")
+    print("=" * 70)
+    candidates = [
+        ("旧オープンデータ(carinf)", "https://carinf.mlit.go.jp/jidosha/carinf/opendata/"),
+        ("carinf トップ", "https://carinf.mlit.go.jp/jidosha/carinf/"),
+        ("MLIT リコール情報", "https://www.mlit.go.jp/jidosha/carinf/rcl/"),
+        ("MLIT 自動車トップ", "https://www.mlit.go.jp/jidosha/"),
+        ("e-Gov データカタログ検索", "https://www.data.go.jp/data/dataset?q=%E3%83%AA%E3%82%B3%E3%83%BC%E3%83%AB"),
+    ]
+    for label, url in candidates:
+        body = probe(label, url)
+        if body:
+            files = re.findall(r'href=["\']([^"\']+\.(?:csv|zip|xlsx?|json|xml))["\']', body, re.I)
+            if files:
+                print(f"    ★ データファイルらしきリンク {len(files)} 件:")
+                for f in dict.fromkeys(files):
+                    print("      ", urllib.parse.urljoin(url, f))
     print("\n完了")
 
 
