@@ -1,105 +1,153 @@
-# リコール監視アプリ（実装パッケージ）
+# リコール監視アプリ
 
 廃止された JASPA「リコール情報検索」アプリの代替として、**国土交通省のリコール情報から自分の車両に該当するリコールを自動でお知らせする iOS アプリ**です。
 
-過去セッション「リコール監視アプリの実現性とユニーク性に関する相談」「個人開発の車関連アプリのアイデア相談」での設計（データソース特定・取得フロー・ネーミング案）をもとにパッケージ化しました。
+## アーキテクチャ
 
-## アーキテクチャ（無料で運用する設計）
+アプリが国土交通省の検索 API を**直接**呼びます。中間のデータ配信サーバーは持ちません。
 
 ```
-国交省 renrakuda（リコール情報）
-   │  ※ mt-search.cgi / mt-estraier.cgi、robots.txt 制限なし（確認済み）
-   ▼
-GitHub Actions（毎日 07:20 JST 実行）
-   │  backend/fetch_recalls.py
-   │    = 一覧取得 → 詳細パース → 型式・車台番号範囲の正規化 → 差分検出
-   ▼
-GitHub Pages（静的 recalls.json を公開）
-   ▼
+国土交通省 renrakuda 検索API
+   │  GET https://renrakuda.mlit.go.jp/mt/mt-estraier.cgi
+   │      ?blog_id=4&class=recalldatacar&model_name=DAA-ZVW50&…
+   │  → 型式で絞り込んだ JSON（型式指定なら 5 件 / 40KB / 約 4 秒）
+   ▲
+   │  ① 起動時・「調べる」実行時・BGAppRefreshTask（8時間後以降OSが実行）
+   │
 iOS アプリ（SwiftUI）
-   │  起動時 + BGAppRefreshTask（8時間後以降OSが実行）
-   │  → フィード取得 → 型式・車台番号でマッチング
+   │  車台番号の範囲判定は端末側（RecallMatcher）
+   │  → 新規該当リコールをローカル通知
+   │
+   │  ② 起動時に 1 日 1 回だけ設定を取得
    ▼
-新規該当リコールをローカル通知
-   ※ 移行余白: APNs/FCM でリモート通知化も可能（後述）
+GitHub Pages（config.json / 数百バイト）
+   └── エンドポイントURL・パラメータ名・フィールド接頭辞
+
+GitHub Actions（毎日 07:20 JST）
+   └── カナリア: API の生存とスキーマを検査 → 壊れていたら Issue を立てる
 ```
 
-- **データ取得**: 国土交通省「リコール情報」は API/HTML の両方があり、`recalls.json` を毎日生成します。
-- **アプリ側**: フィードURLを1つ設定するだけで動作。ユーザーは車検証どおりの型式（例 `DAA-ZVW50`）と車台番号（例 `ZVW50-0001234`）を登録します。
-- **通知**: サーバー不要で動くローカル通知をデフォルトに。将来 APNs/FCM に移行して「即時リモート通知」も可能です。
+### なぜこの構成か
+
+当初は「毎日サーバーで全件取得して静的 JSON を配信し、アプリはそれを読む」設計でした。実 API を調べた結果、**型式で絞り込める JSON API** だと分かったため、直接方式に変更しています。
+
+- 全 10,520 件（数十 MB）を配る必要がなくなった
+- 「調べる」画面が**事前ダウンロードなし**で使える
+- データ配信の 1 日遅れが無くなった
+
+直接方式の弱点は、**仕様変更で全端末が同時に壊れ、App Store 審査を通すまで直せない**ことです。実際この開発中、エンドポイントのパスを 1 階層間違えただけで、サーバーはエラーではなく **HTTP 200 + 本文 0 バイト**を返しました。エラーにならないため気づきにくい種類の壊れ方です。
+
+対策として、**設定だけをリモートに置いています**。
+
+- `site/config.json` を直せば、アプリを更新せずに全端末が復旧する
+- カナリアが毎日検査するので、ユーザーからの報告より先に気づける
 
 ## 構成
 
 ```
-recall-app/
+recall-monitor-app/
 ├── backend/
-│   ├── fetch_recalls.py      # 取得・正規化・差分・JSON生成（国交省向け）
-│   ├── normalize.py          # 型式/車台番号の正規化・範囲判定（iOS側と同期）
-│   ├── requirements.txt      # 標準ライブラリのみ
-│   └── sample_recalls.json   # 開発用サンプル（架空データ）
+│   ├── check_api.py        # カナリア: API の生存・スキーマ検査
+│   ├── matching.py         # 照合ロジックの参照実装（Swift 側と同一仕様）
+│   ├── test_matching.py    # 照合ロジックのテスト（実データの車台番号範囲を使用）
+│   └── requirements.txt    # 標準ライブラリのみ
 ├── .github/workflows/
-│   └── fetch-recalls.yml     # 毎日 cron + 手動実行 → gh-pages へデプロイ
-├── site/                     # 公開ディレクトリ（recalls.json が置かれる）
-└── ios/RecallMonitor/        # Xcode プロジェクトに組み込む SwiftUI ソース一式
+│   └── check-api.yml       # 毎日カナリア実行 → 失敗時に Issue、成功時に config.json を公開
+├── site/
+│   ├── config.json         # アプリが読むリモート設定
+│   └── index.html          # 公開ページ
+└── ios/RecallMonitor/      # Xcode プロジェクトに組み込む SwiftUI ソース一式
     ├── RecallMonitorApp.swift
-    ├── Models/               # Vehicle / Recall（フィードスキーマと同期）
-    ├── Services/             # マッチング・API取得・通知・バックグラウンド更新
-    ├── ViewModels/           # VehicleStore / RecallMonitorStore
-    ├── Views/                # マイカー一覧・編集・リコール一覧・詳細・設定
-    └── Info.plist            # BGTaskScheduler 設定ほか
+    ├── Models/             # Vehicle / Recall（API レスポンスのモデル）
+    ├── Services/           # RemoteConfig / API クライアント / 照合 / 通知 / バックグラウンド更新
+    ├── ViewModels/         # VehicleStore / RecallMonitorStore
+    ├── Views/              # 調べる・マイカー・リコール・詳細・設定
+    └── Info.plist          # BGTaskScheduler 設定ほか
 ```
 
-## セットアップ手順
+## 画面
 
-### 1) データ配信（GitHub Pages）
+| タブ | 役割 |
+| --- | --- |
+| 調べる | 車両を登録せずに型式・車台番号で照合。型式だけでも検索できる |
+| マイカー | 登録車両と該当件数。定期確認オフの車両はベルに斜線が付く |
+| リコール | 登録車両に該当する届出の一覧 |
+| 設定 | 定期確認の全体スイッチ、手動更新、アプリ情報 |
 
-1. このパッケージを GitHub リポジトリにプッシュします（公開/プライベートどちらでも可）。
-2. リポジトリ設定 → **Actions** が有効になっていることを確認します（デフォルトで有効）。
-3. 初回の手動実行: リポジトリの **Actions タブ → fetch-recalls → Run workflow** をクリック。`site/recalls.json` が `gh-pages` ブランチとして発行されます。
-4. リポジトリ設定 → **Pages** → Source: `Deploy from a branch` → `gh-pages/root` を選択。
-5. 公開URLを確認します:
-   `https://<ユーザー名>.github.io/<リポジトリ名>/recalls.json`
-6. 動作確認: ブラウザでそのURLを開き JSON が表示されれば成功です。
+## 照合の考え方
 
-> **注意**: GitHub Pages は反映に数分かかります。また初回はサーバーのキャッシュで古いデータが返ることがあります。
+安全に関わる情報なので、**取りこぼしを避ける方向に倒しています**。
+
+- API の `model_name` は部分一致なので、**型式の確定判定は端末側**で行う
+- 型式が一致した届出は必ず拾う
+- 車台番号が範囲内だと確認できたときだけ「**対象**」（オレンジの △）
+- 範囲を判定できないときは「**要確認**」（黄色の ?）として残し、通知の文面でも区別する
+- すべての範囲が「範囲外」と確定した型式レコードだけを除外する
+
+1 つの型式に**不連続な複数の範囲**が入ることがあります（例: `ZVW50-6000001〜6118168` と `ZVW50-8000001〜8077900`）。範囲の隙間（`ZVW50-7000000` など）を対象にしないよう、範囲ごとに判定します。
+
+車台番号は区切りの有無どちらでも受け付けます。`ZVW506000001` のように区切りが無い場合、型式にも数字が含まれるため単純な分割では誤判定するので、**届出側のプレフィックスを削って**連番を取り出します。
+
+仕様は `backend/matching.py` に参照実装として書き出し、`backend/test_matching.py` で守っています。`ios/.../RecallMatcher.swift` を変更したら**両方を同期してください**。
+
+## 定期確認のオン/オフ
+
+2 段階で切れます。どちらをオフにしても**一覧・詳細の該当表示は残り、通知だけが止まります**。
+
+- **車両ごと** — 車両の編集画面のトグル（`Vehicle.monitoringEnabled`）
+- **全体** — 設定のトグル。オフで `BGTaskScheduler.cancel` を呼び、バックグラウンド更新の予約自体を止める
+
+## セットアップ
+
+### 1) 設定の配信（GitHub Pages）
+
+1. リポジトリ設定 → **Actions** が有効なことを確認します。
+2. **Actions タブ → check-api → Run workflow** を実行します。カナリアが通ると `site/` が `gh-pages` ブランチに公開されます。
+3. リポジトリ設定 → **Pages** → Source: `Deploy from a branch` → `gh-pages/root`。
+4. `https://<ユーザー名>.github.io/recall-monitor-app/config.json` が開ければ成功です。
+
+> config.json が取得できなくても、アプリは組み込みの既定値で動作します。
 
 ### 2) iOS アプリ
 
-1. Xcode で **New → App**（SwiftUI、iOS 17+、任意の Bundle ID 例 `jp.recallmonitor.app`）を作成します。
-2. `ios/RecallMonitor/` 内の全 Swift ファイルを置き換え/追加します（`ContentView.swift` などと同名の自動生成ファイルは上書き）。
-3. Target → **Info** タブで `Info.plist` の内容（BGTaskSchedulerPermittedIdentifiers / UIBackgroundModes）を追加します（プロジェクト生成時に自動で Info 設定があるため、ファイルを直接使う場合は注意）。
-4. ターゲットの **Signing & Capabilities** で利用するチームを選択します（実機テスト時）。
-5. 起動後、**設定タブ**のフィードURLを GitHub Pages の URL に差し替えます。
-6. シミュレータ/実機で「今すぐ更新」→ リコール一覧と、車両登録後の該当表示を確認します。
+1. Xcode で **New → App**（SwiftUI、iOS 17+、Bundle ID 例 `jp.recallmonitor.app`）を作成します。
+2. `ios/RecallMonitor/` 内の全 Swift ファイルを追加します（自動生成の `ContentView.swift` は置き換え）。
+3. Target → **Info** に `Info.plist` の内容（BGTaskSchedulerPermittedIdentifiers / UIBackgroundModes）を反映します。
+4. **Signing & Capabilities** でチームを選択します（実機テスト時）。
+5. `RemoteConfigStore.defaultConfigURL` を自分の GitHub Pages の URL に合わせます。
 
-### 3) ローカルでデータ基盤を試す（開発時）
+### 3) ローカルでの確認
 
 ```bash
 cd backend
-python3 fetch_recalls.py --headless-mode   # サンプルデータから site/recalls.json を生成
-python3 fetch_recalls.py                   # 本番（ネットから国交省データを取得）
+python3 test_matching.py   # 照合ロジックのテスト
+python3 check_api.py       # 実 API の生存・スキーマ検査
 ```
 
 外部依存パッケージなしの標準ライブラリのみで動作します。
 
-## 国交省データのメンテナンス
+> `check_api.py` は国交省サーバーへ実際に接続します。ネットワークによっては到達できないことがあります（本番の検査は GitHub Actions が行います）。
 
-- サイト構造（HTML テーブル・API レスポンス）が変更された場合は、`backend/fetch_recalls.py` の `fetch_listing()` / `parse_detail_html()` を更新してください。エラーが起きた場合、GitHub Actions のログに警告が出ます（サンプルで代替するフォールバック付き）。
-- 型式・車台番号の判定ロジックは `backend/normalize.py` と `ios/.../RecallMatcher.swift` の**両方**に同じ仕様で実装しています。変更時は両方同期してください。
+## メンテナンス
 
-## ネーミング
+カナリアが失敗すると `api-breakage` ラベルの Issue が立ちます。`site/config.json` を新仕様に合わせて更新すれば、**App Store 更新なしで全端末が復旧します**。
 
-前回の相談の残骸として「**リコピコ**」「nenpico 統合」「リコドキ」などの案がありました。`Info.plist` やアプリ内の表示名は用途に合わせて変更できます。
+config.json で吸収できるもの:
+
+- エンドポイント URL（`endpoint`）
+- 固定パラメータ（`fixed_params`: `blog_id` / `class` / `order_by` / `order_condition`）
+- 可変パラメータ名（`param_names`: `model_name` / `notification_date` / `offset` / `limit`）
+- フィールド接頭辞（`field_prefixes`）
+- 詳細ページ URL（`detail_url_template`）
+
+レスポンスの構造そのものが変わった場合はアプリ側の修正が必要です。
 
 ## 将来拡張（APNs リモート通知）
 
-ローカル通知はアプリが起動/バックグラウンド更新したタイミングでの検出です。**即時プッシュ**が欲しい場合は:
-
-1. `GitHub Actions` 上で新規リコール検出時に APNs（または FCM）へ送信するジョブを追加（`.github/workflows/fetch-recalls.yml` に雛形コメントあり）。
-2. アプリに `aps-environment` entitlement と `UNUserNotificationCenter` のデリゲート（リモート通知受信）を追加。
-
-個人開発の規模ならローカル通知で十分、という判断を推奨します。
+ローカル通知はアプリが起動またはバックグラウンド更新したタイミングでの検出です。即時プッシュが欲しい場合は、新着届出を監視して APNs/FCM へ送るジョブを追加し、アプリに `aps-environment` entitlement とリモート通知の受信処理を足します。個人開発の規模ならローカル通知で十分という判断を推奨します。
 
 ## 免責
 
-本パッケージのデータ仕様・セレクタは 2026-08 時点の国交省サイトを基にしたもので、サイト改修により変わり得ます。動作確認は必ず行ってください。
+データ仕様は 2026-08 時点の国土交通省サイトを基にしています。サイト改修により変わり得ます。
+
+車台番号の範囲に入っていても、仕様（変速機の違い、ターボの有無等）により対象外の場合があります。最終的な確認は必ず自動車メーカーまたは販売会社にお問い合わせください。

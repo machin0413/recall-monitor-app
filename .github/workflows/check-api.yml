@@ -1,0 +1,92 @@
+name: check-api
+
+# 国土交通省 renrakuda API のカナリア。
+# アプリは API を直接呼ぶため、サイト仕様が変わると全端末が同時に壊れる。
+# 毎日検査し、壊れていたら Issue を立てて気づけるようにする。
+on:
+  schedule:
+    # 毎日 07:20 JST (22:20 UTC)
+    - cron: "20 22 * * *"
+  push:
+    branches: [main]
+    paths:
+      - backend/check_api.py
+      - site/config.json
+      - .github/workflows/check-api.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: check-api
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 照合ロジックのテスト
+        run: python3 test_matching.py
+        working-directory: backend
+
+      - name: API の仕様を検査
+        run: python3 backend/check_api.py
+
+      - name: 設定を GitHub Pages へ公開
+        if: success()
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          publish_branch: gh-pages
+          force_orphan: true
+          user_name: "github-actions[bot]"
+          user_email: "github-actions[bot]@users.noreply.github.com"
+
+      - name: 失敗したら Issue を立てる
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = '国交省 API の仕様変更を検知しました';
+            const { data: existing } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'api-breakage',
+            });
+            const body = [
+              'カナリア (`backend/check_api.py`) が失敗しました。',
+              'アプリは国交省 API を直接呼んでいるため、この状態では全端末でリコール確認ができません。',
+              '',
+              `実行ログ: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              '',
+              '## 対応',
+              '`site/config.json` を新しい仕様に合わせて更新してください。',
+              'アプリは起動時に config.json を取得するため、**App Store 更新なしで復旧できます**。',
+            ].join('\n');
+
+            if (existing.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing[0].number,
+                body: `再検知しました。\n\n${body}`,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                labels: ['api-breakage'],
+                body,
+              });
+            }

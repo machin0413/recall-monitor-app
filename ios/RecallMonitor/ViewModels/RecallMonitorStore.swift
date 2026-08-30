@@ -1,6 +1,6 @@
 //
 //  RecallMonitorStore.swift
-//  フィード取得・マッチング・新規通知を束ねる画面用ストア。
+//  登録車両ごとに国交省 API へ問い合わせ、照合と新規通知を行う画面用ストア。
 //
 
 import Foundation
@@ -9,28 +9,22 @@ import Combine
 @MainActor
 final class RecallMonitorStore: ObservableObject {
 
-    @Published var recalls: [Recall] = []
+    /// 登録車両に該当した届出（車両ID → 該当リスト）
     @Published var matchesByVehicle: [UUID: [RecallMatch]] = [:]
     @Published var isRefreshing = false
     @Published var lastUpdated: Date?
     @Published var errorMessage: String?
 
     private let vehicleStore: VehicleStore
+    private let configStore: RemoteConfigStore
 
-    init(vehicleStore: VehicleStore) {
+    init(vehicleStore: VehicleStore, configStore: RemoteConfigStore) {
         self.vehicleStore = vehicleStore
+        self.configStore = configStore
     }
-
-    /// フィードURL（GitHub Pages 公開後、ここを差し替える）
-    var feedURLString: String {
-        get { UserDefaults.standard.string(forKey: "feedURL") ?? Self.defaultFeedURL }
-        set { UserDefaults.standard.set(newValue, forKey: "feedURL") }
-    }
-
-    static let defaultFeedURL = "https://machin0413.github.io/recall-monitor-app/recalls.json"
 
     /// 定期確認（バックグラウンド更新と通知）全体のスイッチ。
-    /// オフにすると次回のバックグラウンド更新を予約しない。手動更新は常にできる。
+    /// オフにすると次回のバックグラウンド更新を予約しない。手動更新と検索は常にできる。
     var autoCheckEnabled: Bool {
         get { UserDefaults.standard.object(forKey: Self.autoCheckKey) as? Bool ?? true }
         set {
@@ -47,35 +41,88 @@ final class RecallMonitorStore: ObservableObject {
     private static let autoCheckKey = "autoCheckEnabled.v1"
     private let seenKey = "notifiedRecallIDs.v1"
 
-    /// フィードを取得し、登録車両との照合と新規通知を行う
+    private var client: RecallAPIClient {
+        RecallAPIClient(config: configStore.config)
+    }
+
+    // MARK: - 取得
+
+    /// 登録車両それぞれについて型式で問い合わせ、照合と通知を行う。
     func refresh(notifyIfNew: Bool) async {
-        guard let url = URL(string: feedURLString) else {
-            errorMessage = "フィードURLを設定してください（設定タブ）"
+        let vehicles = vehicleStore.vehicles
+        guard !vehicles.isEmpty else {
+            matchesByVehicle = [:]
+            lastUpdated = Date()
             return
         }
+
         isRefreshing = true
         defer { isRefreshing = false }
+        await configStore.refreshIfNeeded()
 
-        do {
-            let feed = try await RecallAPIClient(feedURL: url).fetchFeed()
-            recalls = feed.recalls
-            lastUpdated = Date()
+        var mapping: [UUID: [RecallMatch]] = [:]
+        var failures: [String] = []
+
+        // 同じ型式の車両が複数あってもリクエストは 1 回で済ませる
+        var byTypeCode: [String: [Vehicle]] = [:]
+        for vehicle in vehicles {
+            byTypeCode[vehicle.typeCode, default: []].append(vehicle)
+        }
+
+        await withTaskGroup(of: (String, Result<[Recall], Error>).self) { group in
+            let apiClient = client
+            for typeCode in byTypeCode.keys {
+                group.addTask {
+                    do {
+                        let recalls = try await apiClient.search(modelName: typeCode)
+                        return (typeCode, .success(recalls))
+                    } catch {
+                        return (typeCode, .failure(error))
+                    }
+                }
+            }
+            for await (typeCode, result) in group {
+                switch result {
+                case .success(let recalls):
+                    for vehicle in byTypeCode[typeCode] ?? [] {
+                        mapping[vehicle.id] = RecallMatcher.matches(for: vehicle, in: recalls)
+                    }
+                case .failure(let error):
+                    failures.append(error.localizedDescription)
+                }
+            }
+        }
+
+        // 取得できた車両分だけ結果を差し替える。失敗した車両は前回の結果を残す。
+        for (id, matches) in mapping {
+            matchesByVehicle[id] = matches
+        }
+        // 削除済みの車両の結果は捨てる
+        let liveIDs = Set(vehicles.map(\.id))
+        matchesByVehicle = matchesByVehicle.filter { liveIDs.contains($0.key) }
+
+        if failures.isEmpty {
             errorMessage = nil
+            lastUpdated = Date()
+        } else {
+            errorMessage = failures.first
+        }
 
-            let vehicles = vehicleStore.vehicles
-            var mapping: [UUID: [RecallMatch]] = [:]
-            for vehicle in vehicles {
-                mapping[vehicle.id] = RecallMatcher.matches(for: vehicle, in: feed.recalls)
-            }
-            matchesByVehicle = mapping
-
-            if notifyIfNew {
-                await notifyNewMatches(vehicles: vehicles)
-            }
-        } catch {
-            errorMessage = error.localizedDescription
+        if notifyIfNew {
+            await notifyNewMatches(vehicles: vehicles)
         }
     }
+
+    /// 車両を登録せずに、型式・車台番号だけで国交省 API に問い合わせる。
+    /// 車台番号が空でも型式だけで検索でき、その場合は結果がすべて「要確認」になる。
+    func lookup(typeCode: String, vin: String) async throws -> [RecallMatch] {
+        await configStore.refreshIfNeeded()
+        let recalls = try await client.search(modelName: typeCode)
+        return RecallMatcher.matches(typeCode: typeCode, vin: vin, in: recalls)
+            .sorted { $0.recall.notificationDate > $1.recall.notificationDate }
+    }
+
+    // MARK: - 通知
 
     /// 該当車両ごとの新規リコールだけを通知する（同じ届出は 1 台につき 1 度だけ）。
     /// 定期確認をオフにした車両は通知しない（一覧・詳細の該当表示は残す）。
@@ -83,7 +130,7 @@ final class RecallMonitorStore: ObservableObject {
         var seen = Set(UserDefaults.standard.stringArray(forKey: seenKey) ?? [])
         for vehicle in vehicles where vehicle.monitoringEnabled {
             for match in matchesByVehicle[vehicle.id] ?? [] {
-                let key = "\(vehicle.id.uuidString)|\(match.recall.recallId)"
+                let key = "\(vehicle.id.uuidString)|\(match.recall.notificationNo)"
                 guard !seen.contains(key) else { continue }
                 await NotificationManager.post(match: match, vehicle: vehicle)
                 seen.insert(key)
@@ -92,26 +139,36 @@ final class RecallMonitorStore: ObservableObject {
         UserDefaults.standard.set(Array(seen), forKey: seenKey)
     }
 
-    var sortedRecalls: [Recall] {
-        recalls.sorted { ($0.publishedAt ?? "") > ($1.publishedAt ?? "") }
+    /// 初回起動時は「新着」がすべて通知されてしまうため、
+    /// 最初の照合結果は通知せず既読として記録する。
+    func markAllAsSeen() {
+        var seen = Set(UserDefaults.standard.stringArray(forKey: seenKey) ?? [])
+        for (vehicleID, matches) in matchesByVehicle {
+            for match in matches {
+                seen.insert("\(vehicleID.uuidString)|\(match.recall.notificationNo)")
+            }
+        }
+        UserDefaults.standard.set(Array(seen), forKey: seenKey)
     }
 
-    /// 全登録車両にまたがる該当リコール（重複除去済み）
+    // MARK: - 表示用
+
+    /// 全登録車両にまたがる該当リコール（重複除去、届出日の新しい順）
     var allMatches: [RecallMatch] {
         var seen = Set<String>()
-        return matchesByVehicle.values.flatMap { $0 }.filter { seen.insert($0.recall.recallId).inserted }
+        return matchesByVehicle.values
+            .flatMap { $0 }
+            .filter { seen.insert($0.recall.notificationNo).inserted }
+            .sorted { $0.recall.notificationDate > $1.recall.notificationDate }
     }
 
-    /// 車両を登録せずに、型式・車台番号だけで取得済みフィードを照合する。
-    /// 車台番号が空でも型式だけで検索でき、その場合は結果がすべて「要確認」になる。
-    func lookup(typeCode: String, vin: String) -> [RecallMatch] {
-        RecallMatcher.matches(typeCode: typeCode, vin: vin, in: recalls)
-            .sorted { ($0.recall.publishedAt ?? "") > ($1.recall.publishedAt ?? "") }
-    }
-
-    /// フィードが未取得なら取得する（かんたん検索の初回用）
-    func loadFeedIfNeeded() async {
-        guard recalls.isEmpty, !isRefreshing else { return }
-        await refresh(notifyIfNew: false)
+    func confidence(for recall: Recall) -> MatchConfidence? {
+        var best: MatchConfidence?
+        for match in matchesByVehicle.values.flatMap({ $0 })
+        where match.recall.notificationNo == recall.notificationNo {
+            if match.confidence == .confirmed { return .confirmed }
+            best = .needsCheck
+        }
+        return best
     }
 }

@@ -25,13 +25,13 @@ enum NotificationManager {
         content.title = match.confidence == .confirmed
             ? "【リコール該当】\(vehicle.name)"
             : "【リコール要確認】\(vehicle.name)"
-        content.body = "\(match.recall.maker) \(match.recall.title)"
+        content.body = "\(match.recall.maker) \(match.recall.title)（\(match.recall.kindLabel)）"
         content.sound = .default
-        content.userInfo = ["recall_id": match.recall.recallId,
+        content.userInfo = ["notification_no": match.recall.notificationNo,
                             "vehicle_id": vehicle.id.uuidString]
 
         let request = UNNotificationRequest(
-            identifier: "recall-\(vehicle.id.uuidString)-\(match.recall.recallId)",
+            identifier: "recall-\(vehicle.id.uuidString)-\(match.recall.notificationNo)",
             content: content,
             trigger: nil
         )

@@ -1,6 +1,6 @@
 //
 //  RecallDetailView.swift
-//  リコール詳細（内容・対象車両・対策）。
+//  リコール詳細（不具合の状況・改善措置・対象車両）。
 //
 
 import SwiftUI
@@ -14,7 +14,7 @@ struct RecallDetailView: View {
     private var affectedVehicles: [(vehicle: Vehicle, confidence: MatchConfidence)] {
         vehicleStore.vehicles.compactMap { vehicle in
             guard let match = monitorStore.matchesByVehicle[vehicle.id]?
-                .first(where: { $0.recall.recallId == recall.recallId }) else { return nil }
+                .first(where: { $0.recall.notificationNo == recall.notificationNo }) else { return nil }
             return (vehicle, match.confidence)
         }
     }
@@ -42,29 +42,47 @@ struct RecallDetailView: View {
                     }
                 }
             }
+
             Section("概要") {
+                LabeledContent("種別", value: recall.kindLabel)
                 LabeledContent("メーカー", value: recall.maker)
-                LabeledContent("届出日", value: recall.publishedAt ?? "-")
-                if let content = recall.content, !content.isEmpty {
-                    Text(content).font(.body)
+                LabeledContent("届出日", value: recall.notificationDate)
+                LabeledContent("届出番号", value: recall.notificationNo)
+                if let count = recall.carCount {
+                    LabeledContent("対象台数", value: "\(count.formatted(.number)) 台")
                 }
             }
+
+            if !recall.situation.isEmpty {
+                Section("不具合の状況") { Text(recall.situation).font(.body) }
+            }
+            if !recall.measures.isEmpty {
+                Section("改善措置") { Text(recall.measures).font(.body) }
+            }
+
             Section("対象車両") {
-                ForEach(Array(recall.affected.enumerated()), id: \.offset) { _, a in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(a.typeCodes.joined(separator: " / "))
+                ForEach(recall.affected, id: \.self) { a in
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(a.commonName.isEmpty ? a.typeCode : "\(a.commonName)（\(a.typeCode)）")
                             .font(.subheadline.bold())
-                        if !a.vinStart.isEmpty || !a.vinEnd.isEmpty {
-                            Text("車台番号 \(a.vinStart) 〜 \(a.vinEnd)")
+                        if a.vinRanges.isEmpty {
+                            Text("車台番号の範囲は届出に記載がありません")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(a.vinRanges, id: \.self) { range in
+                                Text(range.display)
+                                    .font(.caption.monospaced())
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
             }
-            if let url = recall.pageUrl, let link = URL(string: url) {
+
+            if let url = recall.detailURL {
                 Section("詳しく見る") {
-                    Link("国土交通省のページで確認", destination: link)
+                    Link("国土交通省のページで確認", destination: url)
                 }
             }
         }

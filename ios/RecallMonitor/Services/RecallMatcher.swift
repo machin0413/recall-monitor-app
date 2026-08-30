@@ -1,7 +1,9 @@
 //
 //  RecallMatcher.swift
 //  登録車両とリコール対象（型式・車台番号範囲）のマッチング。
-//  正規化仕様は backend/normalize.py と同一。
+//
+//  API の model_name は部分一致なので、サーバー側の絞り込みは粗いフィルタでしかない。
+//  該当かどうかの確定判定はここで行う。
 //
 
 import Foundation
@@ -12,7 +14,7 @@ enum MatchConfidence {
     /// 型式が一致し、車台番号も対象範囲内
     case confirmed
     /// 型式は一致するが、車台番号の範囲判定ができなかった
-    /// （届出に範囲が無い／書式が違う／車台番号が未登録 など）
+    /// （届出に範囲が無い／書式が違う／車台番号が未入力 など）
     case needsCheck
 }
 
@@ -20,7 +22,7 @@ struct RecallMatch: Identifiable {
     let recall: Recall
     let confidence: MatchConfidence
 
-    var id: String { recall.recallId }
+    var id: String { recall.notificationNo }
 }
 
 enum RecallMatcher {
@@ -34,8 +36,7 @@ enum RecallMatcher {
     }
 
     /// 車台番号を (プレフィックス, 連番文字列) に分割
-    /// "ZVW50-0001234" -> ("ZVW50", "0001234")
-    /// "ZVW500001234"  -> ("ZVW50", "0001234")
+    /// "ZVW50-6000001" -> ("ZVW50", "6000001")
     static func split(_ vin: String) -> (prefix: String, seq: String)? {
         let v = vin.uppercased().replacingOccurrences(of: " ", with: "")
         let parts = v.split(separator: "-", omittingEmptySubsequences: true)
@@ -43,9 +44,7 @@ enum RecallMatcher {
             return (String(parts[0]), String(seq))
         }
         if let r = v.range(of: #"\d{6,}$"#, options: .regularExpression) {
-            let seq = String(v[r])
-            let prefix = String(v[v.startIndex..<r.lowerBound])
-            return (prefix, seq)
+            return (String(v[v.startIndex..<r.lowerBound]), String(v[r]))
         }
         return nil
     }
@@ -55,28 +54,26 @@ enum RecallMatcher {
         return Int(trimmed.isEmpty ? "0" : String(trimmed))
     }
 
-    /// 届出側のプレフィックスを手がかりに、車台番号の連番部分を取り出す。
+    /// 届出側のプレフィックスを手がかりに、利用者の車台番号から連番部分を取り出す。
     ///
     /// `split(_:)` だけに頼ると、区切りが無く型式にも数字が含まれる場合
-    /// （"ZVW500001234"）に "ZVW" + "500001234" と誤分割してしまう。
-    /// 対象プレフィックスが分かっているときは、それを削って残りを連番とみなす。
+    /// （"ZVW506000001"）に "ZVW" + "506000001" と誤分割してしまう。
     private static func sequence(of vin: String, matchingPrefix prefix: String) -> String? {
         let normVin = normalizeTypeCode(vin)
         let normPrefix = normalizeTypeCode(prefix)
-        guard !normVin.isEmpty, !normPrefix.isEmpty, normVin.hasPrefix(normPrefix) else {
-            return nil
-        }
+        guard !normVin.isEmpty, !normPrefix.isEmpty, normVin.hasPrefix(normPrefix) else { return nil }
         let seq = String(normVin.dropFirst(normPrefix.count))
         guard !seq.isEmpty, seq.allSatisfy(\.isNumber) else { return nil }
         return seq
     }
 
-    /// 車台番号が対象範囲内か判定。範囲を評価できない場合は nil を返す
+    /// 車台番号が 1 つの範囲に入るか。判定できない場合は nil
     /// （「対象外」と「判定不能」を呼び出し側で区別できるようにする）。
-    static func vinInRange(_ vin: String, prefix: String, start: String, end: String) -> Bool? {
-        guard !prefix.isEmpty, !start.isEmpty, !end.isEmpty,
+    static func rangeContains(_ vin: String, range: VinRange) -> Bool? {
+        guard let (prefix, fromSeq) = split(range.from), !fromSeq.isEmpty,
+              let (_, toSeq) = split(range.to), !toSeq.isEmpty,
               let s = sequence(of: vin, matchingPrefix: prefix),
-              let v = seqValue(s), let lo = seqValue(start), let hi = seqValue(end) else {
+              let v = seqValue(s), let lo = seqValue(fromSeq), let hi = seqValue(toSeq) else {
             return nil
         }
         return lo <= v && v <= hi
@@ -88,30 +85,37 @@ enum RecallMatcher {
 
     /// 型式と車台番号から該当リコールを返す。
     ///
-    /// 型式が一致した届出は必ず拾う。車台番号の範囲まで判定できた場合のみ
-    /// `.confirmed`、判定できなければ `.needsCheck` として返す。
-    /// 範囲外と確定した対象車両レコードだけを除外する。
+    /// 型式が一致した届出は必ず拾う。車台番号が範囲内だと確認できたときだけ
+    /// `.confirmed`、判定できなければ `.needsCheck`。
+    /// すべての範囲が「範囲外」と確定した型式レコードだけを除外する。
     ///
-    /// 車台番号が空のときは（登録前のかんたん検索など）すべて `.needsCheck` になる。
+    /// 車台番号が空のとき（登録前のかんたん検索など）はすべて `.needsCheck` になる。
     static func matches(typeCode: String, vin: String, in recalls: [Recall]) -> [RecallMatch] {
         recalls.compactMap { recall -> RecallMatch? in
             var bestConfidence: MatchConfidence?
 
-            for affected in recall.affected {
-                guard affected.typeCodes.contains(where: { typeCodeMatches($0, typeCode) }) else {
+            for affected in recall.affected where typeCodeMatches(affected.typeCode, typeCode) {
+                if affected.vinRanges.isEmpty {
+                    bestConfidence = .needsCheck
                     continue
                 }
-                switch vinInRange(vin,
-                                  prefix: affected.vinPrefix,
-                                  start: affected.vinStart,
-                                  end: affected.vinEnd) {
-                case .some(true):
+                var sawUndecidable = false
+                var inSomeRange = false
+                for range in affected.vinRanges {
+                    switch rangeContains(vin, range: range) {
+                    case .some(true):  inSomeRange = true
+                    case .some(false): break            // この範囲は外。他の範囲を見る
+                    case .none:        sawUndecidable = true
+                    }
+                    if inSomeRange { break }
+                }
+                if inSomeRange {
                     return RecallMatch(recall: recall, confidence: .confirmed)
-                case .some(false):
-                    continue        // 範囲外と確定。この対象レコードは該当しない
-                case .none:
+                }
+                if sawUndecidable {
                     bestConfidence = .needsCheck
                 }
+                // すべての範囲が「範囲外」と確定した型式レコードは該当しない
             }
             return bestConfidence.map { RecallMatch(recall: recall, confidence: $0) }
         }

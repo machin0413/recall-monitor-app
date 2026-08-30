@@ -7,8 +7,8 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var vehicleStore: VehicleStore
+    @EnvironmentObject private var configStore: RemoteConfigStore
     @EnvironmentObject private var monitorStore: RecallMonitorStore
-    @State private var feedURL = ""
     @State private var autoCheck = true
 
     /// 定期確認の対象になっている車両の台数
@@ -57,35 +57,23 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    TextField("recalls.json のURL", text: $feedURL, axis: .vertical)
-                        .font(.footnote)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                } header: {
-                    Text("データソース")
-                } footer: {
-                    Text("通常は変更不要です。")
-                }
-
-                Section("アプリ情報") {
-                    LabeledContent("最終更新", value: monitorStore.lastUpdated.map {
+                    LabeledContent("最終確認", value: monitorStore.lastUpdated.map {
                         $0.formatted(date: .abbreviated, time: .shortened)
                     } ?? "-")
-                    LabeledContent("リコール件数", value: "\(monitorStore.recalls.count) 件")
+                    LabeledContent("該当件数", value: "\(monitorStore.allMatches.count) 件")
                     LabeledContent("対応", value: "iOS 17.0+ / SwiftUI")
-                    Link("データ提供: 国土交通省（外部サイト）",
-                         destination: URL(string: "https://renrakuda.mlit.go.jp/renrakuda/top.html")!)
-                        .font(.footnote)
+                    if let url = URL(string: configStore.config.sourceURL) {
+                        Link("データ提供: 国土交通省（外部サイト）", destination: url)
+                            .font(.footnote)
+                    }
+                } header: {
+                    Text("アプリ情報")
+                } footer: {
+                    Text("リコール情報は国土交通省「自動車不具合情報ホットライン」から、その都度直接取得しています。")
                 }
             }
             .navigationTitle("設定")
-            .onAppear {
-                feedURL = monitorStore.feedURLString
-                autoCheck = monitorStore.autoCheckEnabled
-            }
-            .onDisappear {
-                if !feedURL.isEmpty { monitorStore.feedURLString = feedURL }
-            }
+            .onAppear { autoCheck = monitorStore.autoCheckEnabled }
         }
     }
 }

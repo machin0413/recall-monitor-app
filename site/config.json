@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "updated_at": "2026-08-30",
+  "note": "アプリが国土交通省 renrakuda API を直接呼ぶための設定。サイト仕様が変わったらこのファイルを更新すれば、アプリを更新せずに全端末が復旧する。",
+
+  "endpoint": "https://renrakuda.mlit.go.jp/mt/mt-estraier.cgi",
+
+  "fixed_params": {
+    "blog_id": "4",
+    "class": "recalldatacar",
+    "order_by": "recall_data_car_mlit_notification_date",
+    "order_condition": "STRD"
+  },
+
+  "param_names": {
+    "model_name": "model_name",
+    "notification_date": "notification_date",
+    "offset": "offset",
+    "limit": "limit"
+  },
+
+  "field_prefixes": {
+    "data": "recall_data_car_mlit_",
+    "type": "recall_type_data_car_mlit_",
+    "chassis": "mst_chassis_car_mlit_"
+  },
+
+  "detail_url_template": "https://renrakuda.mlit.go.jp/renrakuda/ris-detail-car.html?id={id}",
+  "source_url": "https://renrakuda.mlit.go.jp/renrakuda/top.html",
+
+  "notice": null
+}

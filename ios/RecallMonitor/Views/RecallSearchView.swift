@@ -3,6 +3,8 @@
 //  車両を登録せずに、型式・車台番号だけでその場で調べる画面。
 //  廃止された JASPA アプリの「リコール情報検索」に相当する入口。
 //
+//  国交省 API を直接呼ぶので、事前のデータダウンロードは不要。
+//
 
 import SwiftUI
 
@@ -13,10 +15,12 @@ struct RecallSearchView: View {
     @State private var vin = ""
     @State private var results: [RecallMatch] = []
     @State private var hasSearched = false
+    @State private var isSearching = false
+    @State private var errorMessage: String?
     @State private var isRegistering = false
 
     private var canSearch: Bool {
-        !typeCode.trimmingCharacters(in: .whitespaces).isEmpty
+        !typeCode.trimmingCharacters(in: .whitespaces).isEmpty && !isSearching
     }
 
     var body: some View {
@@ -26,7 +30,7 @@ struct RecallSearchView: View {
                     TextField("型式（例: DAA-ZVW50）", text: $typeCode)
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
-                    TextField("車台番号（任意・例: ZVW50-0001234）", text: $vin)
+                    TextField("車台番号（任意・例: ZVW50-6001234）", text: $vin)
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
                 } header: {
@@ -36,15 +40,24 @@ struct RecallSearchView: View {
                 }
 
                 Section {
-                    Button {
-                        search()
-                    } label: {
-                        Label("調べる", systemImage: "magnifyingglass")
+                    Button { Task { await search() } } label: {
+                        if isSearching {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                Text("国土交通省に問い合わせ中…")
+                            }
+                        } else {
+                            Label("調べる", systemImage: "magnifyingglass")
+                        }
                     }
-                    .disabled(!canSearch || monitorStore.isRefreshing)
+                    .disabled(!canSearch)
+                } footer: {
+                    if let errorMessage {
+                        Text(errorMessage).foregroundStyle(.red)
+                    }
                 }
 
-                if hasSearched {
+                if hasSearched, errorMessage == nil {
                     resultSection
                 }
             }
@@ -57,7 +70,6 @@ struct RecallSearchView: View {
                                     prefilledVin: vin)
                 }
             }
-            .task { await monitorStore.loadFeedIfNeeded() }
         }
     }
 
@@ -74,7 +86,7 @@ struct RecallSearchView: View {
             Section {
                 ForEach(results) { match in
                     NavigationLink(value: match.recall) {
-                        SearchResultRow(match: match)
+                        RecallRow(match: match)
                     }
                 }
             } header: {
@@ -86,9 +98,7 @@ struct RecallSearchView: View {
             }
 
             Section {
-                Button {
-                    isRegistering = true
-                } label: {
+                Button { isRegistering = true } label: {
                     Label("この車両を登録して通知を受け取る", systemImage: "bell.badge")
                 }
             } footer: {
@@ -97,34 +107,16 @@ struct RecallSearchView: View {
         }
     }
 
-    private func search() {
-        results = monitorStore.lookup(typeCode: typeCode, vin: vin)
-        hasSearched = true
-    }
-}
-
-private struct SearchResultRow: View {
-    let match: RecallMatch
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .top, spacing: 6) {
-                switch match.confidence {
-                case .confirmed:
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                case .needsCheck:
-                    Image(systemName: "questionmark.circle.fill").foregroundStyle(.yellow)
-                }
-                Text(match.recall.title)
-                    .font(.subheadline.bold())
-                    .lineLimit(2)
-            }
-            Text(match.recall.maker)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text("届出日: \(match.recall.publishedAt ?? "-")")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+    private func search() async {
+        isSearching = true
+        errorMessage = nil
+        defer { isSearching = false }
+        do {
+            results = try await monitorStore.lookup(typeCode: typeCode, vin: vin)
+            hasSearched = true
+        } catch {
+            errorMessage = error.localizedDescription
+            hasSearched = false
         }
     }
 }

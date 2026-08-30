@@ -1,58 +1,78 @@
 //
 //  Recall.swift
-//  backend/fetch_recalls.py が生成する recalls.json のデコードモデル。
-//  スキーマ変更時は backend 側と必ず同期すること。
+//  国土交通省 renrakuda API (mt-estraier.cgi) のレスポンスを表すモデル。
+//
+//  実レスポンスの構造:
+//    { "data": [ {
+//        "recall_data_car_mlit_notification_no": "1146490",
+//        "recall_data_car_mlit_notification_date": "2020/01/29",
+//        "recall_data_car_mlit_defective_device": "シートベルト",
+//        "recall_data_car_mlit_situation_explanatory_text": "...",
+//        "recall_data_car_mlit_measures_explanatory_text": "...",
+//        "typeList":  [ { "recall_type_data_car_mlit_model_name": "DAA-ZVW50",
+//                         "recall_type_data_car_mlit_car_name_code": "トヨタ",
+//                         "recall_type_data_car_mlit_common_name": "プリウス",
+//                         "recall_type_data_car_mlit_chassis_list": [
+//                           { "mst_chassis_car_mlit_chassis_no_from": "ZVW50-6000001",
+//                             "mst_chassis_car_mlit_chassis_to_to":   "ZVW50-6118168" } ] } ],
+//        "typeList1" ... "typeList60": 同上（型が多い届出は分割される）
+//      } ] }
 //
 
 import Foundation
 
-/// フィード全体（generated_at, feed_updated_at, recalls）
-struct RecallFeed: Codable {
-    let generatedAt: String
-    let feedUpdatedAt: String?
-    let recalls: [Recall]
+/// 車台番号の範囲。1 つの型式に対して複数の不連続な範囲が入ることがある
+/// （例: ZVW50-6000001〜6118168 と ZVW50-8000001〜8077900）。
+struct VinRange: Hashable {
+    let from: String   // "ZVW50-6000001"
+    let to: String     // "ZVW50-6118168"
 
-    enum CodingKeys: String, CodingKey {
-        case generatedAt = "generated_at"
-        case feedUpdatedAt = "feed_updated_at"
-        case recalls
-    }
+    var display: String { "\(from) 〜 \(to)" }
 }
 
-/// 1件のリコール届出
-struct Recall: Codable, Identifiable, Hashable {
-    let recallId: String
-    let maker: String
-    let title: String
-    let publishedAt: String?
-    let content: String?
-    let affected: [AffectedVehicle]
-    let pageUrl: String?
-
-    var id: String { recallId }
-
-    enum CodingKeys: String, CodingKey {
-        case recallId = "recall_id"
-        case maker
-        case title
-        case publishedAt = "published_at"
-        case content
-        case affected
-        case pageUrl = "page_url"
-    }
+/// 届出の対象となる 1 型式。
+struct AffectedType: Hashable {
+    let typeCode: String     // 型式 "DAA-ZVW50"
+    let commonName: String   // 通称名 "プリウス"
+    let vinRanges: [VinRange]
 }
 
-/// 対象車両（型式コード・車台番号範囲）
-struct AffectedVehicle: Codable, Hashable {
-    let typeCodes: [String]
-    let vinPrefix: String
-    let vinStart: String
-    let vinEnd: String
+/// リコール・改善対策の届出 1 件。
+struct Recall: Identifiable, Hashable {
+    let notificationNo: String   // 届出番号（端末側の既読管理に使う安定キー）
+    let detailId: String         // 詳細ページ用の内部ID
+    let maker: String            // メーカー（車名コード）
+    let defectiveDevice: String  // 不具合装置。一覧の見出しに使う
+    let notificationDate: String // "2020-01-29"
+    let situation: String        // 不具合の状況
+    let measures: String         // 改善措置
+    let carCount: Int?           // 対象台数
+    let campaignFlag: Int        // 1:リコール 2:改善対策 3:キャンペーン
+    let affected: [AffectedType]
+    let detailURL: URL?
 
-    enum CodingKeys: String, CodingKey {
-        case typeCodes = "type_codes"
-        case vinPrefix = "vin_prefix"
-        case vinStart = "vin_start"
-        case vinEnd = "vin_end"
+    var id: String { notificationNo }
+
+    /// 一覧に出す見出し。不具合装置が空の届出は届出番号で代替する。
+    var title: String {
+        defectiveDevice.isEmpty ? "届出番号 \(notificationNo)" : defectiveDevice
+    }
+
+    /// 通称名の一覧（重複除去）。"プリウス・アクア" のように表示する。
+    var commonNames: [String] {
+        var seen = Set<String>()
+        return affected.compactMap { a in
+            let n = a.commonName
+            guard !n.isEmpty, seen.insert(n).inserted else { return nil }
+            return n
+        }
+    }
+
+    var kindLabel: String {
+        switch campaignFlag {
+        case 1: return "リコール"
+        case 2: return "改善対策"
+        default: return "サービスキャンペーン"
+        }
     }
 }
