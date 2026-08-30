@@ -1,33 +1,33 @@
 # -*- coding: utf-8 -*-
-"""国交省 renrakuda の実 API 仕様を調査するための使い捨て診断スクリプト。
+"""型式で直接絞り込めるか（アプリから直接叩く構成が成立するか）を確かめる診断スクリプト。
 
-このリポジトリの実行環境（Claude セッション等）からは renrakuda へ到達できないため、
-GitHub Actions ランナー上で実行してログから仕様を読み取る目的で用意している。
-
-Usage:
-    python3 probe_api.py
+このリポジトリの実行環境からは renrakuda へ到達できないため、
+GitHub Actions ランナー上で実行してログから判断する。
 """
 import gzip
 import io
 import json
 import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 import zlib
 
 BASE = "https://renrakuda.mlit.go.jp/renrakuda/"
+# ENDPOINT はサイトルート相対。/renrakuda/ を挟むと 200 で空応答になる。
+API = "https://renrakuda.mlit.go.jp/mt/mt-estraier.cgi"
 UA = {
     "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"),
-    "Accept": "text/html,application/xhtml+xml,application/json,*/*;q=0.8",
-    "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+    "Accept": "application/json",
+    "Accept-Language": "ja,en-US;q=0.9",
     "Accept-Encoding": "gzip, deflate",
 }
 
 
-def _decode(raw: bytes, encoding: str) -> str:
+def _decode(raw, encoding):
     if encoding == "gzip":
         try:
             raw = gzip.GzipFile(fileobj=io.BytesIO(raw)).read()
@@ -41,88 +41,84 @@ def _decode(raw: bytes, encoding: str) -> str:
     return raw.decode("utf-8", "replace")
 
 
-def get(url: str, referer: str = "", timeout: int = 45):
-    """(status, final_url, body_text) を返す。例外は握り潰して status に文字列を入れる。"""
+def get(url, referer="", timeout=180):
     headers = dict(UA)
     if referer:
         headers["Referer"] = referer
     req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as res:
-            return res.status, res.geturl(), _decode(res.read(), res.headers.get("Content-Encoding", ""))
+            return res.status, _decode(res.read(), res.headers.get("Content-Encoding", ""))
     except urllib.error.HTTPError as e:
-        return e.code, url, _decode(e.read() or b"", e.headers.get("Content-Encoding", ""))
-    except Exception as e:  # URLError / timeout / TLS など
-        return f"EXC:{type(e).__name__}:{e}", url, ""
+        return e.code, _decode(e.read() or b"", e.headers.get("Content-Encoding", ""))
+    except Exception as e:
+        return "EXC:" + type(e).__name__ + ":" + str(e), ""
 
 
-def dump(label: str, url: str, referer: str = ""):
-    st, final, body = get(url, referer)
-    print(f"\n{'=' * 70}\n### {label}\n    url={url}\n    status={st} len={len(body)} final={final}\n{'=' * 70}")
-    return body
-
-
-# ENDPOINT はサイトルート相対。/renrakuda/ を挟むと 200 で空応答になるので注意。
-API = "https://renrakuda.mlit.go.jp/mt/mt-estraier.cgi"
-
-
-def fetch(params: dict, timeout: int = 180):
-    url = API + "?" + urllib.parse.urlencode(params)
-    st, _, body = get(url, referer=BASE + "ris-search-result-car.html", timeout=timeout)
-    print(f"\nGET {url}\n  status={st} len={len(body)}")
-    if not body:
-        return None
-    # MT テンプレート由来の前後の空白と、末尾の余分なカンマを取り除いてから解釈する
-    text = re.sub(r",\s*(\]\s*\}\s*)$", r"\1", body.strip())
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError as e:
-        print(f"  JSON解釈失敗: {e}")
-        print(f"  tail={text[-300:]!r}")
-        return None
-
-
-def main():
-    """正しいエンドポイントでレスポンス構造を確定させる。"""
-    base = {
+def query(label, extra, limit="100"):
+    params = {
         "blog_id": "4",
         "class": "recalldatacar",
         "notification_date": "0000/00/00 9999/12/31",
+        "offset": "1",
+        "limit": limit,
         "order_by": "recall_data_car_mlit_notification_date",
         "order_condition": "STRD",
     }
-
-    data = fetch({**base, "offset": "1", "limit": "1"})
-    if not data:
-        print("取得失敗。")
-        return 1
+    params.update(extra)
+    url = API + "?" + urllib.parse.urlencode(params)
+    t0 = time.time()
+    st, body = get(url, referer=BASE + "ris-search-result-car.html")
+    ms = int((time.time() - t0) * 1000)
+    print("\n--- " + label)
+    print("    " + url)
+    print("    status=%s  %d ms  %d bytes" % (st, ms, len(body.encode("utf-8"))))
+    if not body.strip():
+        print("    本文が空")
+        return None
+    text = re.sub(r",\s*(\]\s*\}\s*)$", r"\1", body.strip())
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as e:
+        print("    JSON解釈失敗: %s" % e)
+        return None
     rows = data.get("data") or []
-    print(f"  rows={len(rows)}")
-    r = rows[0]
-    print("\n★ 届出レコードのキー（typeList 以外）:")
-    for k, v in r.items():
-        if k.startswith("typeList"):
-            print(f"  {k} = <list len={len(v) if isinstance(v, list) else '?'}>")
-        else:
-            print(f"  {k} = {str(v)[:300]!r}")
+    print("    rows=%d  count=%s" % (len(rows), rows[0].get("count") if rows else "-"))
+    for r in rows[:4]:
+        types = []
+        for k, v in r.items():
+            if k.startswith("typeList") and isinstance(v, list):
+                for t in v:
+                    mn = t.get("recall_type_data_car_mlit_model_name")
+                    if mn:
+                        types.append(mn)
+        print("      %s %s / 型式=%s" % (
+            r.get("recall_data_car_mlit_notification_date"),
+            (r.get("recall_data_car_mlit_defective_device") or "")[:24],
+            ",".join(dict.fromkeys(types))[:80]))
+    return rows
 
-    tl = []
-    for k, v in r.items():
-        if k.startswith("typeList") and isinstance(v, list):
-            tl.extend(v)
-    print(f"\n★ typeList 合計 {len(tl)} 件。先頭 1 件の中身:")
-    if tl:
-        for k, v in tl[0].items():
-            if isinstance(v, list):
-                print(f"  {k} = <list len={len(v)}> 先頭={v[0] if v else None}")
-            else:
-                print(f"  {k} = {str(v)[:300]!r}")
 
-    print("\n--- 全件取得の所要と件数を確認 ---")
-    full = fetch({**base, "offset": "1", "limit": "100000"})
-    if full:
-        frows = full.get("data") or []
-        print(f"★ 全件 = {len(frows)} 件 / count = {frows[0].get('count') if frows else None}")
+def main():
+    print("=" * 70)
+    print("A) robots.txt")
+    print("=" * 70)
+    st, body = get("https://renrakuda.mlit.go.jp/robots.txt")
+    print("status=%s\n%s" % (st, body[:600] if body else "(空)"))
+
+    print("\n" + "=" * 70)
+    print("B) 型式で絞り込めるか")
+    print("=" * 70)
+    query("型式フル指定 model_name=DAA-ZVW50", {"model_name": "DAA-ZVW50"})
+    query("型式のみ model_name=ZVW50", {"model_name": "ZVW50"})
+    query("部分一致の確認 model_name=ZVW", {"model_name": "ZVW"})
+
+    print("\n" + "=" * 70)
+    print("C) 期間で絞ったときの応答サイズ（定期確認の想定）")
+    print("=" * 70)
+    query("直近のみ 2026/06/01〜", {"notification_date": "2026/06/01 9999/12/31"})
+    query("型式 + 直近", {"model_name": "DAA-ZVW50",
+                          "notification_date": "2020/01/01 9999/12/31"})
     print("\n完了")
     return 0
 
