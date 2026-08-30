@@ -36,9 +36,9 @@ struct MatchedRecallListView: View {
                             RecallRow(match: match)
                         }
                     }
+                    .refreshable { await monitorStore.refresh(notifyIfNew: true) }
                 }
             }
-            .refreshable { await monitorStore.refresh(notifyIfNew: true) }
             .navigationTitle("リコール")
             .navigationDestination(for: Recall.self) { RecallDetailView(recall: $0) }
             .toolbar {

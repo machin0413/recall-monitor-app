@@ -47,7 +47,6 @@ struct VehicleListView: View {
                 NavigationStack {
                     VehicleEditView(vehicle: nil)
                 }
-                .environmentObject(vehicleStore)
             }
         }
     }

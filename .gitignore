@@ -1,2 +1,13 @@
+# Python
 __pycache__/
 *.pyc
+
+# Xcode（.xcodeproj は project.yml からの生成物）
+RecallMonitor.xcodeproj/
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# macOS
+.DS_Store

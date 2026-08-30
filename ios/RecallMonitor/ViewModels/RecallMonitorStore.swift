@@ -69,26 +69,25 @@ final class RecallMonitorStore: ObservableObject {
             byTypeCode[vehicle.typeCode, default: []].append(vehicle)
         }
 
-        await withTaskGroup(of: (String, Result<[Recall], Error>).self) { group in
+        // Error は Sendable ではないので、失敗はメッセージ文字列で持ち帰る
+        await withTaskGroup(of: (typeCode: String, recalls: [Recall]?, failure: String?).self) { group in
             let apiClient = client
             for typeCode in byTypeCode.keys {
                 group.addTask {
                     do {
-                        let recalls = try await apiClient.search(modelName: typeCode)
-                        return (typeCode, .success(recalls))
+                        return (typeCode, try await apiClient.search(modelName: typeCode), nil)
                     } catch {
-                        return (typeCode, .failure(error))
+                        return (typeCode, nil, error.localizedDescription)
                     }
                 }
             }
-            for await (typeCode, result) in group {
-                switch result {
-                case .success(let recalls):
-                    for vehicle in byTypeCode[typeCode] ?? [] {
+            for await result in group {
+                if let recalls = result.recalls {
+                    for vehicle in byTypeCode[result.typeCode] ?? [] {
                         mapping[vehicle.id] = RecallMatcher.matches(for: vehicle, in: recalls)
                     }
-                case .failure(let error):
-                    failures.append(error.localizedDescription)
+                } else if let failure = result.failure {
+                    failures.append(failure)
                 }
             }
         }
@@ -160,15 +159,5 @@ final class RecallMonitorStore: ObservableObject {
             .flatMap { $0 }
             .filter { seen.insert($0.recall.notificationNo).inserted }
             .sorted { $0.recall.notificationDate > $1.recall.notificationDate }
-    }
-
-    func confidence(for recall: Recall) -> MatchConfidence? {
-        var best: MatchConfidence?
-        for match in matchesByVehicle.values.flatMap({ $0 })
-        where match.recall.notificationNo == recall.notificationNo {
-            if match.confidence == .confirmed { return .confirmed }
-            best = .needsCheck
-        }
-        return best
     }
 }

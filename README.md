@@ -56,6 +56,8 @@ recall-monitor-app/
 ├── site/
 │   ├── config.json         # アプリが読むリモート設定
 │   └── index.html          # 公開ページ
+├── project.yml             # XcodeGen のプロジェクト定義（.xcodeproj は生成物）
+├── scripts/build.sh        # xcodegen generate → シミュレータ向けビルド
 └── ios/RecallMonitor/      # Xcode プロジェクトに組み込む SwiftUI ソース一式
     ├── RecallMonitorApp.swift
     ├── Models/             # Vehicle / Recall（API レスポンスのモデル）
@@ -110,11 +112,27 @@ recall-monitor-app/
 
 ### 2) iOS アプリ
 
-1. Xcode で **New → App**（SwiftUI、iOS 17+、Bundle ID 例 `jp.recallmonitor.app`）を作成します。
-2. `ios/RecallMonitor/` 内の全 Swift ファイルを追加します（自動生成の `ContentView.swift` は置き換え）。
-3. Target → **Info** に `Info.plist` の内容（BGTaskSchedulerPermittedIdentifiers / UIBackgroundModes）を反映します。
-4. **Signing & Capabilities** でチームを選択します（実機テスト時）。
-5. `RemoteConfigStore.defaultConfigURL` を自分の GitHub Pages の URL に合わせます。
+macOS + Xcode が必要です。プロジェクトファイル（`.xcodeproj`）は `project.yml` から生成するため、リポジトリにはコミットしていません（`project.pbxproj` は差分が読めないため）。
+
+```bash
+brew install xcodegen     # 初回のみ
+./scripts/build.sh        # 生成 → シミュレータ向けビルド
+```
+
+`scripts/build.sh` は `xcodegen generate` でプロジェクトを作り、署名なし（`CODE_SIGNING_ALLOWED=NO`）でシミュレータ向けにビルドします。コンパイルが通るかの確認はこれで済みます。
+
+シミュレータや実機で動かす場合:
+
+```bash
+xcodegen generate
+open RecallMonitor.xcodeproj
+```
+
+実機で動かすときは **Signing & Capabilities** で自分のチームを選んでください（`project.yml` の `DEVELOPMENT_TEAM` に Team ID を書いても構いません）。
+
+**Swift ファイルを追加・削除したら `xcodegen generate` を実行し直してください。** プロジェクトはファイル一覧を持っているため、再生成しないと反映されません。
+
+配信元を自分のものに変える場合は `RemoteConfigStore.defaultConfigURL` を書き換えます。
 
 ### 3) ローカルでの確認
 
@@ -125,6 +143,12 @@ python3 check_api.py       # 実 API の生存・スキーマ検査
 ```
 
 外部依存パッケージなしの標準ライブラリのみで動作します。
+
+iOS 側のコンパイル確認（macOS のみ）:
+
+```bash
+./scripts/build.sh
+```
 
 > `check_api.py` は国交省サーバーへ実際に接続します。ネットワークによっては到達できないことがあります（本番の検査は GitHub Actions が行います）。
 
