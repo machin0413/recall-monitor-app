@@ -100,25 +100,47 @@ def query(label, extra, limit="100"):
 
 
 def main():
-    print("=" * 70)
-    print("A) robots.txt")
-    print("=" * 70)
+    """1 レコードの全キーと robots.txt を確認する（デコーダ実装のため）。"""
     st, body = get("https://renrakuda.mlit.go.jp/robots.txt")
-    print("status=%s\n%s" % (st, body[:600] if body else "(空)"))
-
-    print("\n" + "=" * 70)
-    print("B) 型式で絞り込めるか")
     print("=" * 70)
-    query("型式フル指定 model_name=DAA-ZVW50", {"model_name": "DAA-ZVW50"})
-    query("型式のみ model_name=ZVW50", {"model_name": "ZVW50"})
-    query("部分一致の確認 model_name=ZVW", {"model_name": "ZVW"})
-
-    print("\n" + "=" * 70)
-    print("C) 期間で絞ったときの応答サイズ（定期確認の想定）")
+    print("robots.txt  status=%s" % st)
     print("=" * 70)
-    query("直近のみ 2026/06/01〜", {"notification_date": "2026/06/01 9999/12/31"})
-    query("型式 + 直近", {"model_name": "DAA-ZVW50",
-                          "notification_date": "2020/01/01 9999/12/31"})
+    print(body if body.strip() else "(空)")
+
+    rows = query("型式指定 1 件", {"model_name": "DAA-ZVW50",
+                                   "notification_date": "2020/01/01 9999/12/31"}, limit="1")
+    if not rows:
+        return 1
+
+    r = rows[0]
+    print("\n" + "=" * 70)
+    print("届出レコードの全キー")
+    print("=" * 70)
+    type_lists = []
+    for k in sorted(r):
+        v = r[k]
+        if k.startswith("typeList"):
+            if isinstance(v, list) and v:
+                type_lists.append(k)
+            continue
+        print("  %-52s = %s" % (k, repr(str(v))[:180]))
+    print("\n  中身のある typeList キー: %s" % type_lists)
+
+    items = []
+    for k in type_lists:
+        items.extend(r[k])
+    print("\n" + "=" * 70)
+    print("typeList 要素の全キー（%d 要素中の先頭）" % len(items))
+    print("=" * 70)
+    if items:
+        t = items[0]
+        for k in sorted(t):
+            v = t[k]
+            if isinstance(v, list):
+                print("  %-52s = <list len=%d> 先頭=%s" % (k, len(v), repr(v[0])[:160] if v else "-"))
+            else:
+                print("  %-52s = %s" % (k, repr(str(v))[:160]))
+        print("\n  型式の一覧: %s" % [x.get("recall_type_data_car_mlit_model_name") for x in items])
     print("\n完了")
     return 0
 
