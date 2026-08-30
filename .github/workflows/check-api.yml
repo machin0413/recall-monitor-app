@@ -10,7 +10,7 @@ on:
   push:
     branches: [main, claude/app-development-hhbu4f]
     paths:
-      - backend/check_api.py
+      - backend/**
       - site/config.json
       - .github/workflows/check-api.yml
   workflow_dispatch:
