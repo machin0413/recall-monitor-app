@@ -24,6 +24,33 @@ def norm_type_code(s: str) -> str:
     return re.sub(r"[^0-9A-Z]", "", (s or "").upper())
 
 
+def type_code_keys(s: str) -> set:
+    """型式の比較キー。
+
+    車検証どおりの 'DAA-ZVW50' と、排出ガス規制記号を省いた 'ZVW50' の
+    どちらで入力されても一致するよう、両方を候補に持つ。
+
+    API の model_name は部分一致なので 'ZVW50' でも届出は返ってくる。
+    ここで完全一致しか見ないと、返ってきた届出を取りこぼして
+    「該当なし」と誤表示してしまう。
+    """
+    full = norm_type_code(s)
+    if not full:
+        return set()
+    keys = {full}
+    m = re.search(r"[-－‐−―ー](.+)$", s or "")
+    if m:
+        base = norm_type_code(m.group(1))
+        if base:
+            keys.add(base)
+    return keys
+
+
+def type_code_matches(a: str, b: str) -> bool:
+    ka, kb = type_code_keys(a), type_code_keys(b)
+    return bool(ka and kb and (ka & kb))
+
+
 def split_vin(vin: str):
     """車台番号を (プレフィックス, 連番) に分割する。
 
@@ -84,7 +111,7 @@ def match_recall(type_code: str, vin: str, recall: dict):
     """
     best = None
     for affected in recall.get("affected", []):
-        if norm_type_code(affected.get("type_code", "")) != norm_type_code(type_code):
+        if not type_code_matches(affected.get("type_code", ""), type_code):
             continue
         ranges = affected.get("vin_ranges") or []
         if not ranges:

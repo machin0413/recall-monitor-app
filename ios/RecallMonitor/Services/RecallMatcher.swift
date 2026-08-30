@@ -79,8 +79,27 @@ enum RecallMatcher {
         return lo <= v && v <= hi
     }
 
+    /// 型式の比較キー。車検証どおりの "DAA-ZVW50" と、排出ガス規制記号を省いた
+    /// "ZVW50" のどちらで入力されても一致するよう、両方を候補に持つ。
+    ///
+    /// API の model_name は部分一致なので "ZVW50" でも届出は返ってくる。
+    /// ここで完全一致しか見ないと、返ってきた届出を取りこぼして
+    /// 「該当なし」と誤表示してしまう。
+    static func typeCodeKeys(_ s: String) -> Set<String> {
+        let full = normalizeTypeCode(s)
+        guard !full.isEmpty else { return [] }
+        var keys: Set<String> = [full]
+        let separators = CharacterSet(charactersIn: "-－‐−―ー")
+        if let range = s.rangeOfCharacter(from: separators) {
+            let base = normalizeTypeCode(String(s[range.upperBound...]))
+            if !base.isEmpty { keys.insert(base) }
+        }
+        return keys
+    }
+
     private static func typeCodeMatches(_ a: String, _ b: String) -> Bool {
-        !a.isEmpty && !b.isEmpty && normalizeTypeCode(a) == normalizeTypeCode(b)
+        let ka = typeCodeKeys(a), kb = typeCodeKeys(b)
+        return !ka.isEmpty && !kb.isEmpty && !ka.isDisjoint(with: kb)
     }
 
     /// 型式と車台番号から該当リコールを返す。
