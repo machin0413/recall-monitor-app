@@ -8,7 +8,7 @@ on:
     # 毎日 07:20 JST (22:20 UTC)
     - cron: "20 22 * * *"
   push:
-    branches: [main]
+    branches: [main, claude/app-development-hhbu4f]
     paths:
       - backend/check_api.py
       - site/config.json
@@ -40,8 +40,9 @@ jobs:
       - name: API の仕様を検査
         run: python3 backend/check_api.py
 
+      # 設定の公開は main のみ。開発ブランチから config.json を配ってしまわないようにする
       - name: 設定を GitHub Pages へ公開
-        if: success()
+        if: success() && github.ref == 'refs/heads/main' 
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
