@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  タブ構成: マイカー / リコール / 設定
+//  タブ構成: 調べる / マイカー / リコール / 設定
 //
 
 import SwiftUI
@@ -10,6 +10,8 @@ struct ContentView: View {
 
     var body: some View {
         TabView {
+            RecallSearchView()
+                .tabItem { Label("調べる", systemImage: "magnifyingglass") }
             VehicleListView()
                 .tabItem { Label("マイカー", systemImage: "car") }
             RecallListView()

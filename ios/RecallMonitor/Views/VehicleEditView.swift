@@ -10,11 +10,17 @@ struct VehicleEditView: View {
     @EnvironmentObject private var vehicleStore: VehicleStore
     @EnvironmentObject private var monitorStore: RecallMonitorStore
 
+    /// nil なら新規登録
     let vehicle: Vehicle?
+    /// 「調べる」画面から登録するときの初期値
+    var prefilledTypeCode = ""
+    var prefilledVin = ""
+
     @State private var name = ""
     @State private var maker = ""
     @State private var typeCode = ""
     @State private var vin = ""
+    @State private var monitoringEnabled = true
 
     var body: some View {
         Form {
@@ -29,6 +35,13 @@ struct VehicleEditView: View {
                 TextField("車台番号（例: ZVW50-0001234）", text: $vin)
                     .textInputAutocapitalization(.characters)
                     .autocorrectionDisabled()
+            }
+            Section {
+                Toggle("定期確認", isOn: $monitoringEnabled)
+            } footer: {
+                Text(monitoringEnabled
+                     ? "新しく該当するリコールが出たときに通知します。"
+                     : "この車両は通知しません。リコール一覧・詳細での該当表示はそのまま残ります。")
             }
             Section(footer: Text("型式・車台番号はお手元の車検証（または車検証アプリ）で確認できます")) {
                 Button("保存") { save() }
@@ -47,11 +60,16 @@ struct VehicleEditView: View {
     }
 
     private func fill() {
-        guard let vehicle else { return }
+        guard let vehicle else {
+            typeCode = prefilledTypeCode
+            vin = prefilledVin
+            return
+        }
         name = vehicle.name
         maker = vehicle.maker
         typeCode = vehicle.typeCode
         vin = vehicle.vin
+        monitoringEnabled = vehicle.monitoringEnabled
     }
 
     private func save() {
@@ -60,7 +78,8 @@ struct VehicleEditView: View {
             name: name,
             maker: maker,
             typeCode: typeCode,
-            vin: vin
+            vin: vin,
+            monitoringEnabled: monitoringEnabled
         )
         if vehicle != nil,
            let i = vehicleStore.vehicles.firstIndex(where: { $0.id == newVehicle.id }) {

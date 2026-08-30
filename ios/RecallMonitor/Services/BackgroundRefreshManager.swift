@@ -24,9 +24,19 @@ enum BackgroundRefreshManager {
         }
     }
 
+    /// 次回のバックグラウンド更新を予約する。
+    /// 定期確認がオフのときは予約しない（設定でオンに戻したときに再予約される）。
     static func scheduleNextRefresh() {
+        guard UserDefaults.standard.object(forKey: "autoCheckEnabled.v1") as? Bool ?? true else {
+            cancelScheduledRefresh()
+            return
+        }
         let request = BGAppRefreshTaskRequest(identifier: taskID)
         request.earliestBeginDate = Date(timeIntervalSinceNow: 8 * 60 * 60) // 8時間後以降
         try? BGTaskScheduler.shared.submit(request)
+    }
+
+    static func cancelScheduledRefresh() {
+        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: taskID)
     }
 }

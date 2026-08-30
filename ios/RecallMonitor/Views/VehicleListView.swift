@@ -64,7 +64,15 @@ private struct VehicleRow: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(vehicle.name).font(.headline)
+                HStack(spacing: 5) {
+                    Text(vehicle.name).font(.headline)
+                    if !vehicle.monitoringEnabled {
+                        Image(systemName: "bell.slash")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel("定期確認オフ")
+                    }
+                }
                 Text("\(vehicle.maker) / \(vehicle.typeCode)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
