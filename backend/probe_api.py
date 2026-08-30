@@ -100,47 +100,32 @@ def query(label, extra, limit="100"):
 
 
 def main():
-    """1 レコードの全キーと robots.txt を確認する（デコーダ実装のため）。"""
-    st, body = get("https://renrakuda.mlit.go.jp/robots.txt")
-    print("=" * 70)
-    print("robots.txt  status=%s" % st)
-    print("=" * 70)
-    print(body if body.strip() else "(空)")
-
-    rows = query("型式指定 1 件", {"model_name": "DAA-ZVW50",
-                                   "notification_date": "2020/01/01 9999/12/31"}, limit="1")
+    """車台番号範囲（chassis_list）の実際の値の形式を確認する。"""
+    rows = query("型式指定", {"model_name": "DAA-ZVW50"}, limit="3")
     if not rows:
         return 1
 
-    r = rows[0]
-    print("\n" + "=" * 70)
-    print("届出レコードの全キー")
-    print("=" * 70)
-    type_lists = []
-    for k in sorted(r):
-        v = r[k]
-        if k.startswith("typeList"):
-            if isinstance(v, list) and v:
-                type_lists.append(k)
-            continue
-        print("  %-52s = %s" % (k, repr(str(v))[:180]))
-    print("\n  中身のある typeList キー: %s" % type_lists)
-
-    items = []
-    for k in type_lists:
-        items.extend(r[k])
-    print("\n" + "=" * 70)
-    print("typeList 要素の全キー（%d 要素中の先頭）" % len(items))
-    print("=" * 70)
-    if items:
-        t = items[0]
-        for k in sorted(t):
-            v = t[k]
-            if isinstance(v, list):
-                print("  %-52s = <list len=%d> 先頭=%s" % (k, len(v), repr(v[0])[:160] if v else "-"))
-            else:
-                print("  %-52s = %s" % (k, repr(str(v))[:160]))
-        print("\n  型式の一覧: %s" % [x.get("recall_type_data_car_mlit_model_name") for x in items])
+    for r in rows:
+        print("\n" + "=" * 70)
+        print("届出 %s / %s / %s" % (
+            r.get("recall_data_car_mlit_notification_no"),
+            r.get("recall_data_car_mlit_notification_date"),
+            r.get("recall_data_car_mlit_defective_device")))
+        print("=" * 70)
+        items = []
+        for k, v in r.items():
+            if k.startswith("typeList") and isinstance(v, list):
+                items.extend(v)
+        for t in items[:3]:
+            print("  メーカー=%s 通称名=%s 型式=%s" % (
+                t.get("recall_type_data_car_mlit_car_name_code"),
+                t.get("recall_type_data_car_mlit_common_name"),
+                t.get("recall_type_data_car_mlit_model_name")))
+            for lk in ["recall_type_data_car_mlit_chassis_list"] + [
+                    "recall_type_data_car_mlit_chassis_list%d" % i for i in range(1, 6)]:
+                arr = t.get(lk) or []
+                for c in arr:
+                    print("      [%s] %s" % (lk.rsplit("_", 1)[-1], json.dumps(c, ensure_ascii=False)))
     print("\n完了")
     return 0
 
