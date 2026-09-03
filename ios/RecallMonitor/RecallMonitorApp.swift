@@ -23,11 +23,10 @@ struct RecallMonitorApp: App {
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
     let monitorStore = RecallMonitorStore()
-    private let bgManager = BackgroundRefreshManager()
 
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        bgManager.register { [weak self] in
+        BackgroundRefreshManager.register { [weak self] in
             await self?.monitorStore.refresh(notifyIfNew: true)
         }
         Task {
@@ -37,6 +36,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     }
 
     func applicationDidEnterBackground(_ application: UIApplication) {
-        bgManager.scheduleNextRefresh()
+        BackgroundRefreshManager.scheduleNextRefresh()
     }
 }

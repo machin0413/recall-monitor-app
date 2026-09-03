@@ -1,16 +1,19 @@
 //
 //  ContentView.swift
-//  タブ構成: マイカー / リコール / 設定
+//  タブ構成: 検索 / マイカー / リコール / 設定
 //
 
 import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var monitorStore: RecallMonitorStore
-    @StateObject private var vehicleStore = VehicleStore()
+    @ObservedObject private var vehicleStore = VehicleStore.shared
 
     var body: some View {
         TabView {
+            // 主動線。登録なしでいきなり調べられるよう先頭に置く。
+            RecallSearchView()
+                .tabItem { Label("検索", systemImage: "magnifyingglass") }
             VehicleListView(vehicleStore: vehicleStore)
                 .tabItem { Label("マイカー", systemImage: "car") }
             RecallListView()
@@ -20,7 +23,7 @@ struct ContentView: View {
         }
         .task {
             await NotificationManager.requestAuthorizationIfNeeded()
-            await monitorStore.refresh(notifyIfNew: false, vehicles: vehicleStore.vehicles)
+            await monitorStore.refresh(notifyIfNew: false)
         }
     }
 }

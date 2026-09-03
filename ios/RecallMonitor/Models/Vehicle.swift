@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct Vehicle: Codable, Identifiable {
+struct Vehicle: Codable, Identifiable, Hashable {
     var id = UUID()
     var name: String      // 登録名（例: プリウス 2020）
     var maker: String     // メーカー（例: トヨタ）

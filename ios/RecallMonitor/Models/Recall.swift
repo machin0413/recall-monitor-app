@@ -1,26 +1,13 @@
 //
 //  Recall.swift
-//  backend/fetch_recalls.py が生成する recalls.json のデコードモデル。
-//  スキーマ変更時は backend 側と必ず同期すること。
+//  アプリ内で扱うリコールの表現。
+//  国交省APIのレスポンスからは RecallAPIClient が組み立てる。
 //
 
 import Foundation
 
-/// フィード全体（generated_at, feed_updated_at, recalls）
-struct RecallFeed: Codable {
-    let generatedAt: String
-    let feedUpdatedAt: String?
-    let recalls: [Recall]
-
-    enum CodingKeys: String, CodingKey {
-        case generatedAt = "generated_at"
-        case feedUpdatedAt = "feed_updated_at"
-        case recalls
-    }
-}
-
 /// 1件のリコール届出
-struct Recall: Codable, Identifiable, Equatable {
+struct Recall: Codable, Identifiable, Equatable, Hashable {
     let recallId: String
     let maker: String
     let title: String
@@ -43,16 +30,31 @@ struct Recall: Codable, Identifiable, Equatable {
 }
 
 /// 対象車両（型式コード・車台番号範囲）
-struct AffectedVehicle: Codable, Equatable {
+struct AffectedVehicle: Codable, Equatable, Hashable {
     let typeCodes: [String]
+
+    /// 車台番号の範囲。数値として比較できる届出のときだけ入る。
+    /// 輸入車はシリアル番号（例 VF3LCYHZRLS037790）で届け出されることがあり、
+    /// 連番として比較できない。その場合は3つとも空文字になる。
     let vinPrefix: String
     let vinStart: String
     let vinEnd: String
+
+    /// 届出書に記載された車台番号の原文（表示用）。比較可否によらず入る。
+    let vinFrom: String?
+    let vinTo: String?
+
+    /// 車台番号の範囲を数値比較できるか
+    var hasComparableRange: Bool {
+        !vinPrefix.isEmpty && !vinStart.isEmpty && !vinEnd.isEmpty
+    }
 
     enum CodingKeys: String, CodingKey {
         case typeCodes = "type_codes"
         case vinPrefix = "vin_prefix"
         case vinStart = "vin_start"
         case vinEnd = "vin_end"
+        case vinFrom = "vin_from"
+        case vinTo = "vin_to"
     }
 }
