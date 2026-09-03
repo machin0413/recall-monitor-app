@@ -13,7 +13,7 @@ struct RecallDetailView: View {
         List {
             Section("概要") {
                 LabeledContent("メーカー", value: recall.maker)
-                LabeledContent("掲示日", value: recall.publishedAt ?? "-")
+                LabeledContent("届出日", value: recall.publishedAt ?? "-")
                 if let content = recall.content {
                     Text(content)
                         .font(.body)
@@ -24,20 +24,31 @@ struct RecallDetailView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(a.typeCodes.joined(separator: " / "))
                             .font(.subheadline.bold())
-                        Text("車台番号 \(a.vinPrefix)-\(a.vinStart) 〜 \(a.vinPrefix)-\(a.vinEnd)")
+                        Text(chassisRangeText(a))
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        if matches(affected: a) {
+                        switch level(of: a) {
+                        case .confirmed:
                             Label("あなたの車両が対象です", systemImage: "exclamationmark.triangle.fill")
                                 .font(.caption.bold())
                                 .foregroundStyle(.orange)
+                        case .possible:
+                            Label("あなたの車両が対象の可能性があります", systemImage: "questionmark.circle")
+                                .font(.caption.bold())
+                                .foregroundStyle(.yellow)
+                        case .none:
+                            EmptyView()
                         }
                     }
                 }
             }
             if let url = recall.pageUrl, let link = URL(string: url) {
-                Section("詳しく見る") {
-                    Link("国土交通省のページで確認", destination: link)
+                Section {
+                    Link("国土交通省の届出書（PDF）を開く", destination: link)
+                } header: {
+                    Text("詳しく見る")
+                } footer: {
+                    Text("車台番号が範囲内でも、仕様（変速機の違い、ターボの有無など）により対象外の場合があります。最終的な確認は自動車メーカーまたは販売会社へお問い合わせください。")
                 }
             }
         }
@@ -45,10 +56,21 @@ struct RecallDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func matches(affected: AffectedVehicle) -> Bool {
-        // 全登録車両の中に該当するものがいるか
-        let vehicles = (monitorStore.matchingByVehicle
-            .filter { $0.value.contains(where: { $0.recallId == recall.recallId }) })
-        return !vehicles.isEmpty
+    /// この対象範囲に対する、登録車両の中で最も強い該当度。
+    /// リコール単位ではなく範囲単位で判定しないと、同じ届出に複数範囲がある場合に
+    /// 該当しない範囲にも警告が出てしまう。
+    private func level(of affected: AffectedVehicle) -> RecallMatcher.MatchLevel {
+        monitorStore.vehicles
+            .map { RecallMatcher.level(typeCode: $0.typeCode, vinInput: $0.vin, affected: affected) }
+            .max() ?? .none
+    }
+
+    /// 車台番号の範囲表示。届出書の原文をそのまま出す。
+    private func chassisRangeText(_ a: AffectedVehicle) -> String {
+        let from = a.vinFrom ?? "", to = a.vinTo ?? ""
+        if from.isEmpty && to.isEmpty {
+            return "車台番号の範囲は届出書（PDF）を確認してください"
+        }
+        return "車台番号 \(from) 〜 \(to)"
     }
 }

@@ -19,14 +19,14 @@ struct RecallListView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if monitorStore.recalls.isEmpty {
+                if monitorStore.latestRecalls.isEmpty {
                     ContentUnavailableView(
-                        "リコールデータがありません",
-                        systemImage: "tray",
-                        description: Text(monitorStore.isRefreshing ? "更新中…" : "「今すぐ更新」で最新データを取得できます")
+                        monitorStore.errorMessage ?? "リコールデータがありません",
+                        systemImage: monitorStore.errorMessage == nil ? "tray" : "wifi.exclamationmark",
+                        description: Text(monitorStore.isRefreshing ? "取得中…" : "下に引いて再取得できます")
                     )
                 } else {
-                    List(monitorStore.sortedRecalls) { recall in
+                    List(monitorStore.latestRecalls) { recall in
                         NavigationLink(value: recall) {
                             RecallRow(recall: recall, isRelevant: relevantIDs.contains(recall.recallId))
                         }
@@ -36,7 +36,7 @@ struct RecallListView: View {
                     }
                 }
             }
-            .navigationTitle("リコール")
+            .navigationTitle("新着リコール")
             .navigationDestination(for: Recall.self) { RecallDetailView(recall: $0) }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -67,7 +67,7 @@ private struct RecallRow: View {
             Text(recall.maker)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text("掲示日: \(recall.publishedAt ?? "-")")
+            Text("届出日: \(recall.publishedAt ?? "-")")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }

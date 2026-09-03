@@ -8,7 +8,7 @@ import UIKit
 
 struct VehicleEditView: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject private var vehicleStore = VehicleStore()
+    @ObservedObject var vehicleStore: VehicleStore
 
     let vehicle: Vehicle?
     @State private var name = ""
@@ -53,10 +53,10 @@ struct VehicleEditView: View {
             typeCode: typeCode,
             vin: vin
         )
-        if vehicle != nil {
-            if let i = vehicleStore.vehicles.firstIndex(where: { $0.id == newVehicle.id }) {
-                vehicleStore.vehicles[i] = newVehicle
-            }
+        // 既存車両の編集なら置き換え、そうでなければ追加。
+        // 検索画面から型式・車台番号を引き継いだ「新規だが初期値あり」も追加になる。
+        if let i = vehicleStore.vehicles.firstIndex(where: { $0.id == newVehicle.id }) {
+            vehicleStore.vehicles[i] = newVehicle
         } else {
             vehicleStore.add(newVehicle)
         }

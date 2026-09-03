@@ -32,13 +32,15 @@ struct VehicleListView: View {
             .navigationTitle("マイカー")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    NavigationLink(value: Vehicle?.none, destination: VehicleEditView(vehicle: nil)) {
+                    NavigationLink {
+                        VehicleEditView(vehicleStore: vehicleStore, vehicle: nil)
+                    } label: {
                         Image(systemName: "plus")
                     }
                 }
             }
             .navigationDestination(for: Vehicle.self) { vehicle in
-                VehicleEditView(vehicle: vehicle)
+                VehicleEditView(vehicleStore: vehicleStore, vehicle: vehicle)
             }
         }
         .onReceive(monitorStore.$matchingByVehicle) { _ in }

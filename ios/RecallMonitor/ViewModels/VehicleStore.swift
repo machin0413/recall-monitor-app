@@ -7,6 +7,12 @@ import Foundation
 import Combine
 
 final class VehicleStore: ObservableObject {
+
+    /// アプリ全体で共有する唯一のインスタンス。
+    /// 画面（マイカー一覧・編集）とバックグラウンド更新が同じ登録車両を
+    /// 見る必要があるため、インスタンスを分けてはいけない。
+    static let shared = VehicleStore()
+
     @Published var vehicles: [Vehicle] {
         didSet { save() }
     }
