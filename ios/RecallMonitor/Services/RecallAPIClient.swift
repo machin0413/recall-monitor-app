@@ -138,6 +138,14 @@ private struct APIResponse: Decodable {
     let data: [APIRecord]
 }
 
+/// 任意のキー名で引くための CodingKey。分割された typeList を集めるのに使う。
+private struct DynamicKey: CodingKey {
+    var stringValue: String
+    var intValue: Int? { nil }
+    init?(stringValue: String) { self.stringValue = stringValue }
+    init?(intValue: Int) { nil }
+}
+
 private struct APIRecord: Decodable {
     let notificationNo: String?
     let notificationDate: String?
@@ -156,7 +164,34 @@ private struct APIRecord: Decodable {
         case measures         = "recall_data_car_mlit_measures_explanatory_text"
         case campaignFlag     = "recall_data_car_mlit_recall_campaign_flag"
         case deleteFlag       = "recall_data_car_mlit_delete_flag"
-        case typeList
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        notificationNo   = try c.decodeIfPresent(String.self, forKey: .notificationNo)
+        notificationDate = try c.decodeIfPresent(String.self, forKey: .notificationDate)
+        defectiveDevice  = try c.decodeIfPresent(String.self, forKey: .defectiveDevice)
+        situation        = try c.decodeIfPresent(String.self, forKey: .situation)
+        measures         = try c.decodeIfPresent(String.self, forKey: .measures)
+        campaignFlag     = try c.decodeIfPresent(String.self, forKey: .campaignFlag)
+        deleteFlag       = try c.decodeIfPresent(String.self, forKey: .deleteFlag)
+
+        // 対象型式は typeList に 32 件までしか入らず、超過分が typeList1〜typeList60
+        // に分割される。対象車種の多い大規模リコールほど分割されるため、ここを
+        // 取りこぼすと「該当なし」と誤答する。全部まとめること。
+        typeList = APIRecord.collect(from: decoder, base: "typeList", count: 60)
+    }
+
+    /// base, base1, base2, ... を順に読んで連結する
+    static func collect<T: Decodable>(from decoder: Decoder, base: String, count: Int) -> [T]? {
+        guard let container = try? decoder.container(keyedBy: DynamicKey.self) else { return nil }
+        var all: [T] = []
+        for name in [base] + (1...count).map({ "\(base)\($0)" }) {
+            guard let key = DynamicKey(stringValue: name),
+                  let part = try? container.decodeIfPresent([T].self, forKey: key) else { continue }
+            all.append(contentsOf: part)
+        }
+        return all
     }
 
     func toRecall() -> Recall {
@@ -206,7 +241,16 @@ private struct APIType: Decodable {
         case carName     = "recall_type_data_car_mlit_car_name_code"
         case modelName   = "recall_type_data_car_mlit_model_name"
         case commonName  = "recall_type_data_car_mlit_common_name"
-        case chassisList = "recall_type_data_car_mlit_chassis_list"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        carName    = try c.decodeIfPresent(String.self, forKey: .carName)
+        modelName  = try c.decodeIfPresent(String.self, forKey: .modelName)
+        commonName = try c.decodeIfPresent(String.self, forKey: .commonName)
+        // 車台番号範囲も同様に chassis_list1〜5 へ分割されうる
+        chassisList = APIRecord.collect(from: decoder,
+                                        base: "recall_type_data_car_mlit_chassis_list", count: 5)
     }
 
     /// 型式ごとの対象車台番号範囲を組み立てる。

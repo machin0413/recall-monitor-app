@@ -100,6 +100,22 @@ enum RecallMatcher {
         static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
     }
 
+    /// 届出側のプレフィックスを手がかりに、車台番号から連番部分を取り出す。
+    ///
+    /// 'ZVW50-6000100' のように区切りがあれば素直に割れるが、'ZVW506000100' と
+    /// 区切りなしで入力されることもある。型式部分にも数字が含まれるため
+    /// 「末尾の数字列」で切ると ZVW / 506000100 と誤り、対象なのに「対象外」と
+    /// 答えてしまう。届出側は範囲のプレフィックス（ZVW50）を知っているので、
+    /// それを削った残りを連番として扱う。
+    static func sequence(of vinInput: String, forPrefix prefix: String) -> String? {
+        let vin = normalizeTypeCode(vinInput)
+        let pre = normalizeTypeCode(prefix)
+        guard !vin.isEmpty, !pre.isEmpty, vin.hasPrefix(pre) else { return nil }
+        let seq = String(vin.dropFirst(pre.count))
+        guard !seq.isEmpty, seq.allSatisfy(\.isNumber) else { return nil }
+        return seq
+    }
+
     /// 型式（＋任意の車台番号）が、1つの対象範囲にどこまで該当するか。
     /// 車台番号が空、または読み取れない場合は .none に落とさず .possible に倒す。
     /// リコールは見逃しの実害が大きく、広めに拾って確認を促す方が安全なため。
@@ -110,13 +126,23 @@ enum RecallMatcher {
         // 輸入車のシリアル番号など、届出側の範囲を数値比較できない場合は確定させない
         guard affected.hasComparableRange else { return .possible }
         let trimmed = vinInput.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty, let parsed = split(trimmed), !parsed.seq.isEmpty else {
-            return .possible
+        guard !trimmed.isEmpty else { return .possible }
+
+        // 届出側のプレフィックスと噛み合えば、残りを連番として範囲判定する
+        if let seq = sequence(of: trimmed, forPrefix: affected.vinPrefix) {
+            guard let v = seqValue(seq),
+                  let lo = seqValue(affected.vinStart),
+                  let hi = seqValue(affected.vinEnd) else { return .possible }
+            return (lo <= v && v <= hi) ? .confirmed : .none
         }
-        return vin(inRange: trimmed,
-                   prefix: affected.vinPrefix,
-                   start: affected.vinStart,
-                   end: affected.vinEnd) ? .confirmed : .none
+
+        // 噛み合わない場合、素直に割れて別のプレフィックスだと分かるなら対象外。
+        // どちらとも言えないものは「対象外」と言い切らず要確認に倒す。
+        if let parsed = split(trimmed), !parsed.seq.isEmpty,
+           normalizeTypeCode(parsed.prefix) != normalizeTypeCode(affected.vinPrefix) {
+            return .none
+        }
+        return .possible
     }
 
     /// 1件の届出に対する最も強い該当度（複数の対象範囲のうち最良のもの）
