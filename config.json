@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "_comment": "アプリが起動時に読む API 設定。国交省側の仕様が変わったら、このファイルを直して main に push すれば全端末が復旧する（App Store 更新が不要）。反映は raw.githubusercontent.com のキャッシュにより最大5分。フィールド名の変更まではここでは吸収できない（デコーダの修正=アプリ更新が必要）。",
+
+  "endpoint": "https://renrakuda.mlit.go.jp/mt/mt-estraier.cgi",
+  "pdf_base": "https://renrakuda.mlit.go.jp/renrakuda/recallpdf/",
+
+  "_query_comment": "毎回同じ値で送る固定パラメータ",
+  "query": {
+    "blog_id": "4",
+    "class": "recalldatacar",
+    "notification_date": "0000/00/00 9999/12/31",
+    "order_by": "recall_data_car_mlit_notification_date",
+    "order_condition": "STRD"
+  },
+
+  "_param_names_comment": "呼び出しごとに値が変わるパラメータの名前。名前が変わったらここを直す",
+  "param_names": {
+    "model_name": "model_name",
+    "offset": "offset",
+    "limit": "limit"
+  },
+
+  "_notice_comment": "利用者に伝えたいことがあれば文字列を入れる。null なら何も出さない。API が壊れて復旧に時間がかかるときの周知に使う",
+  "notice": null
+}

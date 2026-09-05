@@ -25,8 +25,15 @@ final class RecallMonitorStore: ObservableObject {
     /// 新着一覧の件数
     private let latestLimit = 50
 
-    private let client = RecallAPIClient()
+    private let configStore = RemoteConfigStore.shared
     private let vehicleStore: VehicleStore
+
+    /// 呼び出しのたびに最新の設定でクライアントを組む。
+    /// config.json が更新されれば、次の検索から新しい設定が効く。
+    private var client: RecallAPIClient { RecallAPIClient(config: configStore.config) }
+
+    /// 利用者向けのお知らせ（config.json から。通常は nil）
+    var notice: String? { configStore.config.notice }
     private var cancellables = Set<AnyCancellable>()
     private let seenKey = "notifiedRecallIDs.v1"
 
@@ -35,6 +42,10 @@ final class RecallMonitorStore: ObservableObject {
 
     init(vehicleStore: VehicleStore = .shared) {
         self.vehicleStore = vehicleStore
+        // 設定が差し替わったら画面にも反映されるよう、変更を上流に流す
+        configStore.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
         // 車両の追加・編集・削除で該当リコールを引き直す
         vehicleStore.$vehicles
             .dropFirst()
@@ -51,6 +62,9 @@ final class RecallMonitorStore: ObservableObject {
     func refresh(notifyIfNew: Bool) async {
         isRefreshing = true
         defer { isRefreshing = false }
+        // API の呼び方が変わっていないかを先に確認する。
+        // 取得に失敗しても内蔵値かキャッシュで動き続ける。
+        await configStore.refresh()
         do {
             latestRecalls = try await client.search(limit: latestLimit)
             lastUpdated = Date()

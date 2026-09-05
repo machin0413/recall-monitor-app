@@ -47,26 +47,25 @@ enum RecallAPIClientError: LocalizedError {
 
 struct RecallAPIClient {
 
-    static let endpoint = "https://renrakuda.mlit.go.jp/mt/mt-estraier.cgi"
-    static let pdfBase = "https://renrakuda.mlit.go.jp/renrakuda/recallpdf/"
-
+    /// エンドポイントとパラメータ名は config.json から差し替えられる。
+    /// 国交省側の仕様変更に App Store 更新なしで追随するため（RemoteConfig.swift 参照）。
+    var config: APIConfig = .builtIn
     var session: URLSession = .shared
+
+    /// 届出書 PDF の URL
+    func pdfURL(notificationNo: String) -> String? {
+        notificationNo.isEmpty ? nil : config.pdfBase + notificationNo + ".pdf"
+    }
 
     /// 型式で検索する。modelName が空なら新着順の一覧になる。
     /// - Parameter modelName: 車検証の型式。canonicalTypeCode で整えてから渡す。
     func search(modelName: String = "", limit: Int = 50, offset: Int = 1) async throws -> [Recall] {
-        var components = URLComponents(string: Self.endpoint)
-        var items = [
-            URLQueryItem(name: "blog_id", value: "4"),
-            URLQueryItem(name: "class", value: "recalldatacar"),
-            URLQueryItem(name: "notification_date", value: "0000/00/00 9999/12/31"),
-            URLQueryItem(name: "offset", value: String(offset)),
-            URLQueryItem(name: "limit", value: String(limit)),
-            URLQueryItem(name: "order_by", value: "recall_data_car_mlit_notification_date"),
-            URLQueryItem(name: "order_condition", value: "STRD"),
-        ]
+        var components = URLComponents(string: config.endpoint)
+        var items = config.query.map { URLQueryItem(name: $0.key, value: $0.value) }
+        items.append(URLQueryItem(name: config.paramNames.offset, value: String(offset)))
+        items.append(URLQueryItem(name: config.paramNames.limit, value: String(limit)))
         if !modelName.isEmpty {
-            items.append(URLQueryItem(name: "model_name", value: modelName))
+            items.append(URLQueryItem(name: config.paramNames.modelName, value: modelName))
         }
         components?.queryItems = items
         guard let url = components?.url else { throw RecallAPIClientError.badURL }
@@ -83,7 +82,7 @@ struct RecallAPIClient {
             let decoded = try JSONDecoder().decode(APIResponse.self, from: body)
             return decoded.data
                 .filter { $0.deleteFlag != "オン" }   // 取り下げられた届出は除く
-                .map { $0.toRecall() }
+                .map { $0.toRecall(pdfBase: config.pdfBase) }
         } catch {
             throw RecallAPIClientError.decode(error.localizedDescription)
         }
@@ -194,7 +193,7 @@ private struct APIRecord: Decodable {
         return all
     }
 
-    func toRecall() -> Recall {
+    func toRecall(pdfBase: String) -> Recall {
         let no = (notificationNo ?? "").trimmingCharacters(in: .whitespaces)
         let device = (defectiveDevice ?? "").trimmingCharacters(in: .whitespaces)
         let kind = campaignFlag == "2" ? "改善対策" : "リコール"
@@ -226,7 +225,7 @@ private struct APIRecord: Decodable {
             publishedAt: (notificationDate ?? "").replacingOccurrences(of: "/", with: "-"),
             content: content,
             affected: (typeList ?? []).flatMap { $0.toAffected() },
-            pageUrl: no.isEmpty ? nil : RecallAPIClient.pdfBase + no + ".pdf"
+            pageUrl: no.isEmpty ? nil : pdfBase + no + ".pdf"
         )
     }
 }

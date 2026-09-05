@@ -7,6 +7,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var monitorStore: RecallMonitorStore
+    @ObservedObject private var configStore = RemoteConfigStore.shared
 
     var body: some View {
         NavigationStack {
@@ -36,6 +37,16 @@ struct SettingsView: View {
                     Link("データ提供: 国土交通省（外部サイト）",
                          destination: URL(string: "https://renrakuda.mlit.go.jp/renrakuda/")!)
                         .font(.footnote)
+                }
+                Section {
+                    LabeledContent("API設定", value: configStore.source.rawValue)
+                    LabeledContent("設定の取得", value: configStore.lastFetched.map {
+                        $0.formatted(date: .abbreviated, time: .shortened)
+                    } ?? "-")
+                } header: {
+                    Text("接続設定")
+                } footer: {
+                    Text("国土交通省側の仕様が変わった場合、アプリを更新しなくても接続設定の差し替えで復旧できるようにしています。")
                 }
                 Section("通知について") {
                     Text("マイカーに登録した車両に該当するリコールが新しく公開されると、端末に通知します。登録していない場合、通知は行いません。")
