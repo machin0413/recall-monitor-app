@@ -13,8 +13,10 @@ on:
   push:
     branches: [main]
     paths:
+      - config.json
       - scripts/check_api.py
       - ios/RecallMonitor/Services/RecallAPIClient.swift
+      - ios/RecallMonitor/Services/RemoteConfig.swift
       - .github/workflows/check-api.yml
   workflow_dispatch:
 
@@ -61,11 +63,15 @@ jobs:
               '',
               '## 対応',
               '1. ログでどの検査が落ちたかを確認する',
-              '2. `ios/RecallMonitor/Services/RecallAPIClient.swift` を新しい仕様に合わせる',
-              '3. 判定に関わる変更なら `RecallMatcher.swift` も見直す',
+              '2. エンドポイントやパラメータ名の変更なら **`config.json` を直して main に push** する。',
+              '   アプリは起動時にこれを読むため、App Store 更新なしで全端末が復旧する（反映は最大5分）。',
+              '   `RemoteConfig.swift` の `builtIn` も同じ値に揃えること（新規インストール時に使われる）。',
+              '3. レスポンスのフィールド名が変わった場合は config.json では吸収できない。',
+              '   `RecallAPIClient.swift` のデコーダ修正が要るため、App Store 更新が必要。',
+              '4. 判定に関わる変更なら `RecallMatcher.swift` も見直す。',
               '',
-              'エンドポイントやパラメータ名はアプリに埋め込まれているため、',
-              '復旧には App Store 更新が必要です。',
+              '**急ぎの場合**: `config.json` の `notice` に文言を入れて push すると、',
+              'アプリの検索画面に周知を出せる。復旧までの間の案内に使う。',
             ].join('\n');
 
             if (existing.length > 0) {

@@ -35,6 +35,13 @@ struct RecallSearchView: View {
     var body: some View {
         NavigationStack {
             Form {
+                if let notice = monitorStore.notice, !notice.isEmpty {
+                    Section {
+                        Label(notice, systemImage: "exclamationmark.bubble")
+                            .font(.callout)
+                            .foregroundStyle(.orange)
+                    }
+                }
                 Section {
                     TextField("型式（例: DAA-ZVW50）", text: $typeCode)
                         .textInputAutocapitalization(.characters)

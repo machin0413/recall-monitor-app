@@ -15,6 +15,7 @@
 ## 構成
 
 ```
+config.json                        # アプリが起動時に読む接続設定（差し替えで復旧できる）
 scripts/check_api.py               # API 仕様のカナリア（GitHub Actions が毎日実行）
 ios/
 ├── RecallMonitor.xcodeproj/       # Xcode プロジェクト（フォルダ同期方式）
@@ -24,6 +25,7 @@ ios/
     ├── Services/
     │   ├── RecallAPIClient.swift  # 国交省APIの呼び出しとレスポンス変換
     │   ├── RecallMatcher.swift    # 型式・車台番号の正規化と該当判定
+    │   ├── RemoteConfig.swift     # config.json の取得とキャッシュ
     │   ├── NotificationManager.swift
     │   └── BackgroundRefreshManager.swift
     ├── ViewModels/                # RecallMonitorStore / VehicleStore
@@ -50,11 +52,31 @@ https://renrakuda.mlit.go.jp/mt/mt-estraier.cgi
 
 収録範囲は 1993年4月15日以降の届出で、全期間で 10,520 件ほどです。届出書の PDF は `https://renrakuda.mlit.go.jp/renrakuda/recallpdf/<届出番号>.pdf` で直接開けます。
 
+### 仕様変更への備え
+
+エンドポイントとパラメータ名は、リポジトリ直下の `config.json` に置いてあります。アプリは起動時にこれを取得し、取れなければ内蔵の既定値で動きます。
+
+```
+https://raw.githubusercontent.com/machin0413/recall-monitor-app/main/config.json
+```
+
+国交省側の仕様が変わったら **`config.json` を直して main に push するだけで、全端末が復旧します**（App Store 更新は不要。反映は raw のキャッシュにより最大5分）。`notice` に文言を入れれば、検索画面に周知を出すこともできます。復旧までの案内に使えます。
+
+配信のために GitHub Pages を用意する必要はありません。`raw.githubusercontent.com` がそのまま使えるので、リポジトリにファイルを 1 つ置くだけです。
+
+**吸収できないもの**: レスポンスのフィールド名が変わった場合。デコーダの修正が要るため、アプリの更新が必要です。`config.json` が扱うのは「どこへ何を送るか」だけです。
+
+`config.json` を書き換えるときは `RemoteConfig.swift` の `builtIn` も同じ値に揃えてください（新規インストール直後や、取得に失敗した端末で使われます）。ずれているとカナリアが失敗します。
+
 ### API の仕様変更を監視する
 
 アプリは配信サーバーを持たず API を直接呼ぶため、**国交省側の仕様が変わると全端末が同時に壊れます**。しかもユーザーには「該当なし」としか見えないことがあり、誤答として現れます。
 
-`.github/workflows/check-api.yml` が毎日 `scripts/check_api.py` を実行し、アプリが依存しているフィールドと挙動（エンドポイントの疎通、末尾カンマ込みの解析、`typeList` の分割構造、型式での部分一致）を検査します。失敗すると `api-breakage` ラベルの Issue を立てます。
+`.github/workflows/check-api.yml` が毎日 `scripts/check_api.py` を実行し、アプリが依存しているフィールドと挙動を検査します。失敗すると `api-breakage` ラベルの Issue を立てます。
+
+検査は**アプリと同じ `config.json` を使って**行うので、設定を書き換えて壊した場合もここで気づけます。検査項目は、config.json の形と内蔵既定値とのずれ、エンドポイントの疎通、末尾カンマ込みの解析、各フィールドの存在、`typeList` の分割構造、そして型式での絞り込みです。
+
+絞り込みの検査は件数だけを見ません。パラメータ名が変わると API は絞り込みを無視して全件返すため、「0 件でない」だけでは素通りします。返ってきた届出が本当にその型式を含むかまで確認しています。
 
 手元でも実行できます。
 
