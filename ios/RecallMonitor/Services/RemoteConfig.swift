@@ -109,8 +109,11 @@ final class RemoteConfigStore: ObservableObject {
     /// config.json を取得して差し替える。失敗しても既存の設定をそのまま使い続ける。
     func refresh() async {
         var request = URLRequest(url: Self.configURL)
-        // 5分キャッシュされるため、明示的に取りに行く場合も新鮮さは高々5分ずれる
-        request.cachePolicy = .reloadRevalidatingCacheData
+        // これは障害からの復旧経路なので、キャッシュに一切頼らない。
+        // 条件付き GET だと URLSession と CDN のキャッシュを掴んで、直したはずの
+        // 設定が古いまま返ることがある（実際に起きた）。設定は数百バイトで
+        // 起動時に1回しか取らないため、毎回取り直しても損はしない。
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         request.timeoutInterval = 15
 
         do {
