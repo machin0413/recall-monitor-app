@@ -20,21 +20,11 @@ jobs:
 
       - name: Xcode とシミュレータを確認
         id: sim
+        # シミュレータ名を決め打ちすると Xcode の更新で壊れるため、
+        # ランナーで実際に使える iPhone から 1 台選ぶ。
         run: |
           xcodebuild -version
-          # ランナーに入っている iPhone シミュレータを1台選ぶ。
-          # 名前を決め打ちすると Xcode の更新で壊れるため、実際に使えるものから取る。
-          UDID=$(xcrun simctl list devices available -j | python3 -c "
-import json, sys
-devices = json.load(sys.stdin)['devices']
-for runtime, items in devices.items():
-    if 'iOS' not in runtime:
-        continue
-    for d in items:
-        if d['name'].startswith('iPhone'):
-            print(d['udid']); raise SystemExit
-raise SystemExit('利用可能な iPhone シミュレータが見つかりません')
-")
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; ds=json.load(sys.stdin)['devices']; print(next(d['udid'] for r,v in ds.items() if 'iOS' in r for d in v if d['name'].startswith('iPhone')))")
           echo "使用するシミュレータ: $UDID"
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
 
