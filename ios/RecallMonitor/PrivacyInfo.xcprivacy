@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  プライバシーマニフェスト。
+	  これが無いと App Store Connect へのアップロードが弾かれる。
+
+	  このアプリはサーバーを持たず、利用者のデータをどこにも送らない。
+	  検索時に型式を国土交通省へ問い合わせるが、個人と結びつく情報は
+	  含まず、こちらでは何も保存しない。
+	-->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<!-- 収集するデータは無い -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<!--
+			  UserDefaults は Required Reason API。
+			  登録車両・通知済み記録・接続設定のキャッシュを保存するために使う。
+			  いずれもこのアプリ自身のデータで、外部へは出さない。
+			-->
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

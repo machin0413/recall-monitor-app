@@ -6,10 +6,14 @@
 	<array>
 		<string>jp.recallmonitor.refresh</string>
 	</array>
+	<!--
+	  BGAppRefreshTask しか使っていないので fetch のみ。
+	  使っていない background mode を宣言していると審査で指摘される。
+	  BGProcessingTask を導入する場合は processing を足すこと。
+	-->
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
-		<string>processing</string>
 	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
