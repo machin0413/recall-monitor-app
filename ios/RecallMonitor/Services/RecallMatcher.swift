@@ -58,16 +58,53 @@ enum RecallMatcher {
         return lo <= v && v <= hi
     }
 
-    /// 届出側の型式に、入力された型式が含まれるか。
+    /// 型式から照合用のキー集合を作る。
     ///
-    /// API の model_name は部分一致で絞り込むため、端末側も同じ基準にしないと
-    /// サーバが返したものを取りこぼす。実データの型式は 'DAA-ZVW50' のように
-    /// 排ガス記号つきで登録されており、利用者が 'ZVW50' とだけ入力しても
-    /// 引けるようにする必要がある。
-    private static func typeCodeMatches(_ affectedCode: String, _ query: String) -> Bool {
-        let q = normalizeTypeCode(query)
-        guard !q.isEmpty else { return false }
-        return normalizeTypeCode(affectedCode).contains(q)
+    /// 排ガス規制記号（ハイフンより前の 1〜3 文字。DAA, BC, 7CF など）は、
+    /// **届出によって有ったり無かったりする**。実データでは同じ車体が
+    /// 'BC-ZRT10A' と 'ZRT10A' の両方の表記で登録されており、記号つきで
+    /// 入力すると記号なしの届出を取りこぼす。実際、車検証どおり 'BC-ZRT10A' と
+    /// 入力すると 1999 年の届出（'ZRT10A' で登録）が見えなくなっていた。
+    /// 実データのユニーク型式の 14% は記号を持たない。
+    ///
+    /// そこで記号を落とした本体も必ずキーに含め、照合はキー集合の積で行う。
+    ///   'BC-ZRT10A' -> {BCZRT10A, ZRT10A}
+    ///   'ZRT10A'    -> {ZRT10A}          → 積が空でないので一致
+    static func typeCodeKeys(_ s: String) -> Set<String> {
+        let canonical = canonicalTypeCode(s)
+        var keys = Set<String>()
+        let full = normalizeTypeCode(canonical)
+        if !full.isEmpty { keys.insert(full) }
+        if let hyphen = canonical.firstIndex(of: "-") {
+            let body = normalizeTypeCode(String(canonical[canonical.index(after: hyphen)...]))
+            if !body.isEmpty { keys.insert(body) }
+        }
+        return keys
+    }
+
+    /// 届出側の型式と入力が同じ車を指しているか。
+    ///
+    /// 部分一致ではなくキー集合の積で判定する。部分一致だと 'GG' が
+    /// 'XXX-GGYY' にも当たってしまい、無関係な車を「対象の可能性あり」と
+    /// 表示してしまう。キー方式なら記号の有無だけを吸収して他は取り違えない。
+    static func typeCodeMatches(_ affectedCode: String, _ query: String) -> Bool {
+        let queryKeys = typeCodeKeys(query)
+        guard !queryKeys.isEmpty else { return false }
+        return !typeCodeKeys(affectedCode).isDisjoint(with: queryKeys)
+    }
+
+    /// API の model_name に渡す文字列。
+    ///
+    /// 排ガス記号を落とした本体を投げる。API の絞り込みは部分一致なので、
+    /// 'BC-ZRT10A' をそのまま投げると 'ZRT10A' で登録された届出が返ってこない。
+    /// 本体で広く網を張り、絞り込みは端末側の typeCodeMatches で行う。
+    static func searchQuery(for typeCode: String) -> String {
+        let canonical = canonicalTypeCode(typeCode)
+        if let hyphen = canonical.firstIndex(of: "-") {
+            let body = String(canonical[canonical.index(after: hyphen)...])
+            if !body.isEmpty { return body }
+        }
+        return canonical
     }
 
     /// API の model_name に渡せる形に整える。

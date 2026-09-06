@@ -47,6 +47,17 @@ enum RecallAPIClientError: LocalizedError {
 
 struct RecallAPIClient {
 
+    struct SearchResult {
+        let recalls: [Recall]
+        /// API が返した生の件数。取り下げ済みを除外する前の数。
+        let returnedCount: Int
+        let limit: Int
+
+        /// 上限に達しており、表示できていない届出がありうる。
+        /// 短い型式を入力すると普通に起きるため、黙って捨てず利用者に伝えること。
+        var isTruncated: Bool { returnedCount >= limit }
+    }
+
     /// エンドポイントとパラメータ名は config.json から差し替えられる。
     /// 国交省側の仕様変更に App Store 更新なしで追随するため（RemoteConfig.swift 参照）。
     var config: APIConfig = .builtIn
@@ -59,7 +70,7 @@ struct RecallAPIClient {
 
     /// 型式で検索する。modelName が空なら新着順の一覧になる。
     /// - Parameter modelName: 車検証の型式。canonicalTypeCode で整えてから渡す。
-    func search(modelName: String = "", limit: Int = 50, offset: Int = 1) async throws -> [Recall] {
+    func search(modelName: String = "", limit: Int = 50, offset: Int = 1) async throws -> SearchResult {
         var components = URLComponents(string: config.endpoint)
         var items = config.query.map { URLQueryItem(name: $0.key, value: $0.value) }
         items.append(URLQueryItem(name: config.paramNames.offset, value: String(offset)))
@@ -80,9 +91,12 @@ struct RecallAPIClient {
         }
         do {
             let decoded = try JSONDecoder().decode(APIResponse.self, from: body)
-            return decoded.data
+            let recalls = decoded.data
                 .filter { $0.deleteFlag != "オン" }   // 取り下げられた届出は除く
                 .map { $0.toRecall(pdfBase: config.pdfBase) }
+            return SearchResult(recalls: recalls,
+                                returnedCount: decoded.data.count,
+                                limit: limit)
         } catch {
             throw RecallAPIClientError.decode(error.localizedDescription)
         }

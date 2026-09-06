@@ -29,6 +29,13 @@ struct Recall: Codable, Identifiable, Equatable, Hashable {
     }
 }
 
+/// 1件のリコールと、ある車両に対する該当度の組
+struct RecallMatch: Identifiable, Equatable {
+    let recall: Recall
+    let level: RecallMatcher.MatchLevel
+    var id: String { recall.recallId }
+}
+
 /// 対象車両（型式コード・車台番号範囲）
 struct AffectedVehicle: Codable, Equatable, Hashable {
     let typeCodes: [String]
