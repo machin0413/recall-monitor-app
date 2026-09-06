@@ -1,0 +1,39 @@
+name: test
+
+# 照合ロジックのユニットテスト。実 API は叩かず、Fixtures/ に記録した応答だけで
+# 走るので速く安定している。「外界が変わっていないか」は check-api.yml（カナリア）の担当。
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode とシミュレータを確認
+        id: sim
+        # シミュレータ名を決め打ちすると Xcode の更新で壊れるため、
+        # ランナーで実際に使える iPhone から 1 台選ぶ。
+        run: |
+          xcodebuild -version
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; ds=json.load(sys.stdin)['devices']; print(next(d['udid'] for r,v in ds.items() if 'iOS' in r for d in v if d['name'].startswith('iPhone')))")
+          echo "使用するシミュレータ: $UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: テスト
+        working-directory: ios
+        run: |
+          xcodebuild test \
+            -project RecallMonitor.xcodeproj \
+            -scheme RecallMonitor \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO

@@ -1,0 +1,388 @@
+
+
+
+
+
+
+
+  
+    
+      
+    
+  
+  
+    
+      {
+    "data":
+    [
+    
+    
+        
+        
+        {
+        "recall_data_car_mlit_id":"3001532",
+        "recall_data_car_mlit_notification_no":"1118030",
+        "recall_data_car_mlit_notification_date":"2007/01/17",
+        "recall_data_car_mlit_defective_device":"燃料タンク",
+        "recall_data_car_mlit_recall_car_count":"3240",
+        "recall_data_car_mlit_import_production_start_date":"2004年10月 6日",
+        "recall_data_car_mlit_import_production_end_date":"2006年8月22日",
+        "recall_data_car_mlit_model_import_production_start_date":"2007年1月18日",
+        "recall_data_car_mlit_model_import_production_end_date":"0000年12月 0日",
+        "recall_data_car_mlit_delete_flag":"オフ",
+        "recall_data_car_mlit_situation_explanatory_text":"燃料タンクの製造工程において、燃料ゲージをタンクに取り付けるボルトを過大なトルクで締付けたため、ガスケットを大きく変形させたものがあり、ガソリンにより膨潤し更に大きく変形しているものがある。そのため、ガスケットの取付けボルト部分の気密性が損なわれ、ガソリンが漏れるおそれがある。",
+        "recall_data_car_mlit_measures_explanatory_text":"全車両、当該ガスケットと取付けボルトを対策品と交換し、取付けボルトを規定のトルクで締付ける。",
+        "recall_data_car_mlit_file_name":"<span class=\"mt-enclosure mt-enclosure-file\" style=\"display: inline;\"><a href=\"../recallpdf/1118030.pdf\">1118030.pdf</a></span>",
+        "recall_data_car_mlit_recall_campaign_flag":"1",
+        "recall_data_car_mlit_home_foreign_country_flag":"1",
+        "recall_data_car_mlit_mea_no":"18030",
+        "typeList":[{"recall_type_data_car_mlit_notification_no":"1118030","recall_type_data_car_mlit_model_list_no":"1","recall_type_data_car_mlit_car_name_code":"カワサキ","recall_type_data_car_mlit_model_name":"BA-ZR250B","recall_type_data_car_mlit_common_name":"バリオス２","recall_type_data_car_mlit_chassis_list":[{"mst_chassis_car_mlit_notification_no":"1118030","mst_chassis_car_mlit_model_list_no":"1","mst_chassis_car_mlit_chassis_list_no":"1","mst_chassis_car_mlit_chassis_no_from":"ZR250B-035138","mst_chassis_car_mlit_chassis_to_to":"ZR250B-035854"}],"recall_type_data_car_mlit_chassis_list1":[],"recall_type_data_car_mlit_chassis_list2":[],"recall_type_data_car_mlit_chassis_list3":[],"recall_type_data_car_mlit_chassis_list4":[],"recall_type_data_car_mlit_chassis_list5":[]},{"recall_type_data_car_mlit_notification_no":"1118030","recall_type_data_car_mlit_model_list_no":"2","recall_type_data_car_mlit_car_name_code":"カワサキ","recall_type_data_car_mlit_model_name":"BC-ZR400E","recall_type_data_car_mlit_common_name":"ＺＲＸ","recall_type_data_car_mlit_chassis_list":[{"mst_chassis_car_mlit_notification_no":"1118030","mst_chassis_car_mlit_model_list_no":"2","mst_chassis_car_mlit_chassis_list_no":"1","mst_chassis_car_mlit_chassis_no_from":"ZR400E-053043","mst_chassis_car_mlit_chassis_to_to":"ZR400E-053272"}],"recall_type_data_car_mlit_chassis_list1":[],"recall_type_data_car_mlit_chassis_list2":[],"recall_type_data_car_mlit_chassis_list3":[],"recall_type_data_car_mlit_chassis_list4":[],"recall_type_data_car_mlit_chassis_list5":[]},{"recall_type_data_car_mlit_notification_no":"1118030","recall_type_data_car_mlit_model_list_no":"3","recall_type_data_car_mlit_car_name_code":"カワサキ","recall_type_data_car_mlit_model_name":"BC-ZR400E","recall_type_data_car_mlit_common_name":"ＺＲＸ－２","recall_type_data_car_mlit_chassis_list":[{"mst_chassis_car_mlit_notification_no":"1118030","mst_chassis_car_mlit_model_list_no":"3","mst_chassis_car_mlit_chassis_list_no":"1","mst_chassis_car_mlit_chassis_no_from":"ZR400E-346043","mst_chassis_car_mlit_chassis_to_to":"ZR400E-346247"}],"recall_type_data_car_mlit_chassis_list1":[],"recall_type_data_car_mlit_chassis_list2":[],"recall_type_data_car_mlit_chassis_list3":[],"recall_type_data_car_mlit_chassis_list4":[],"recall_type_data_car_mlit_chassis_list5":[]},{"recall_type_data_car_mlit_notification_no":"1118030","recall_type_data_car_mlit_model_list_no":"4","recall_type_data_car_mlit_car_name_code":"カワサキ","recall_type_data_car_mlit_model_name":"BC-ZR750C","recall_type_data_car_mlit_common_name":"ゼファー７５０","recall_type_data_car_mlit_chassis_list":[{"mst_chassis_car_mlit_notification_no":"1118030","mst_chassis_car_mlit_model_list_no":"4","mst_chassis_car_mlit_chassis_list_no":"1","mst_chassis_car_mlit_chassis_no_from":"ZR750C-075289","mst_chassis_car_mlit_chassis_to_to":"ZR750C-077252"},{"mst_chassis_car_mlit_notification_no":"1118030","mst_chassis_car_mlit_model_list_no":"4","mst_chassis_car_mlit_chassis_list_no":"2","mst_chassis_car_mlit_chassis_no_from":"ZR750C-077534","mst_chassis_car_mlit_chassis_to_to":"ZR750C-079765"}],"recall_type_data_car_mlit_chassis_list1":[],"recall_type_data_car_mlit_chassis_list2":[],"recall_type_data_car_mlit_chassis_list3":[],"recall_type_data_car_mlit_chassis_list4":[],"recall_type_data_car_mlit_chassis_list5":[]},{"recall_type_data_car_mlit_notification_no":"1118030","recall_type_data_car_mlit_model_list_no":"5","recall_type_data_car_mlit_car_name_code":"カワサキ","recall_type_data_car_mlit_model_name":"BC-ZR750F","recall_type_data_car_mlit_common_name":"ＺＲ－７Ｓ","recall_type_data_car_mlit_chassis_list":[{"mst_chassis_car_mlit_notification_no":"1118030","mst_chassis_car_mlit_model_list_no":"5","mst_chassis_car_mlit_chassis_list_no":"1","mst_chassis_car_mlit_chassis_no_from":"ZR750F-112001","mst_chassis_car_mlit_chassis_to_to":"ZR750F-112081"},{"mst_chassis_car_mlit_notification_no":"1118030","mst_chassis_car_mlit_model_list_no":"5","mst_chassis_car_mlit_chassis_list_no":"2","mst_chassis_car_mlit_chassis_no_from":"ZR750F-112202","mst_chassis_car_mlit_chassis_to_to":"ZR750F-112361"}],"recall_type_data_car_mlit_chassis_list1":[],"recall_type_data_car_mlit_chassis_list2":[],"recall_type_data_car_mlit_chassis_list3":[],"recall_type_data_car_mlit_chassis_list4":[],"recall_type_data_car_mlit_chassis_list5":[]},{"recall_type_data_car_mlit_notification_no":"1118030","recall_type_data_car_mlit_model_list_no":"6","recall_type_data_car_mlit_car_name_code":"カワサキ","recall_type_data_car_mlit_model_name":"BC-ZRT10A","recall_type_data_car_mlit_common_name":"ゼファー１１００","recall_type_data_car_mlit_chassis_list":[{"mst_chassis_car_mlit_notification_no":"1118030","mst_chassis_car_mlit_model_list_no":"6","mst_chassis_car_mlit_chassis_list_no":"1","mst_chassis_car_mlit_chassis_no_from":"ZRT10A-069001","mst_chassis_car_mlit_chassis_to_to":"ZRT10A-069132"},{"mst_chassis_car_mlit_notification_no":"1118030","mst_chassis_car_mlit_model_list_no":"6","mst_chassis_car_mlit_chassis_list_no":"2","mst_chassis_car_mlit_chassis_no_from":"ZRT10A-069398","mst_chassis_car_mlit_chassis_to_to":"ZRT10A-070528"}],"recall_type_data_car_mlit_chassis_list1":[],"recall_type_data_car_mlit_chassis_list2":[],"recall_type_data_car_mlit_chassis_list3":[],"recall_type_data_car_mlit_chassis_list4":[],"recall_type_data_car_mlit_chassis_list5":[]}],
+        "typeList1":[],
+        "typeList2":[],
+        "typeList3":[],
+        "typeList4":[],
+        "typeList5":[],
+        "typeList6":[],
+        "typeList7":[],
+        "typeList8":[],
+        "typeList9":[],
+        "typeList10":[],
+        "typeList11":[],
+        "typeList12":[],
+        "typeList13":[],
+        "typeList14":[],
+        "typeList15":[],
+        "typeList16":[],
+        "typeList17":[],
+        "typeList18":[],
+        "typeList19":[],
+        "typeList20":[],
+        "typeList21":[],
+        "typeList22":[],
+        "typeList23":[],
+        "typeList24":[],
+        "typeList25":[],
+        "typeList26":[],
+        "typeList27":[],
+        "typeList28":[],
+        "typeList29":[],
+        "typeList30":[],
+        "typeList31":[],
+        "typeList32":[],
+        "typeList33":[],
+        "typeList34":[],
+        "typeList35":[],
+        "typeList36":[],
+        "typeList37":[],
+        "typeList38":[],
+        "typeList39":[],
+        "typeList40":[],
+        "typeList41":[],
+        "typeList42":[],
+        "typeList43":[],
+        "typeList44":[],
+        "typeList45":[],
+        "typeList46":[],
+        "typeList47":[],
+        "typeList48":[],
+        "typeList49":[],
+        "typeList50":[],
+        "typeList51":[],
+        "typeList52":[],
+        "typeList53":[],
+        "typeList54":[],
+        "typeList55":[],
+        "typeList56":[],
+        "typeList57":[],
+        "typeList58":[],
+        "typeList59":[],
+        "typeList60":[],
+        "count": "4"
+        }
+        
+                
+                    ,
+                
+            
+    
+    
+    
+        
+        
+        {
+        "recall_data_car_mlit_id":"3001411",
+        "recall_data_car_mlit_notification_no":"1116980",
+        "recall_data_car_mlit_notification_date":"2006/07/19",
+        "recall_data_car_mlit_defective_device":"燃料タンク",
+        "recall_data_car_mlit_recall_car_count":"3200",
+        "recall_data_car_mlit_import_production_start_date":"2004年10月13日",
+        "recall_data_car_mlit_import_production_end_date":"2006年1月14日",
+        "recall_data_car_mlit_model_import_production_start_date":"2006年7月19日",
+        "recall_data_car_mlit_model_import_production_end_date":"0000年12月 0日",
+        "recall_data_car_mlit_delete_flag":"オフ",
+        "recall_data_car_mlit_situation_explanatory_text":"　　燃料タンクの製造工程において、燃料ゲージをタンクに取り付けるボルトを過大なトルクで締付けたため、ガスケットを大きく変形させたものがあり、ガソリンにより膨潤し更に大きく変形しているものがある。そのため、ガスケットの取付けボルト部分の気密性が損なわれ、ガソリンが漏れるおそれがある。",
+        "recall_data_car_mlit_measures_explanatory_text":"全車両、当該ガスケットと取付けボルトを対策品と交換し、取付けボルトを規定のトルクで締付ける。",
+        "recall_data_car_mlit_file_name":"<span class=\"mt-enclosure mt-enclosure-file\" style=\"display: inline;\"><a href=\"../recallpdf/1116980.pdf\">1116980.pdf</a></span>",
+        "recall_data_car_mlit_recall_campaign_flag":"1",
+        "recall_data_car_mlit_home_foreign_country_flag":"1",
+        "recall_data_car_mlit_mea_no":"16980",
+        "typeList":[{"recall_type_data_car_mlit_notification_no":"1116980","recall_type_data_car_mlit_model_list_no":"1","recall_type_data_car_mlit_car_name_code":"カワサキ","recall_type_data_car_mlit_model_name":"BA-ZR250B","recall_type_data_car_mlit_common_name":"バリオス２","recall_type_data_car_mlit_chassis_list":[{"mst_chassis_car_mlit_notification_no":"1116980","mst_chassis_car_mlit_model_list_no":"1","mst_chassis_car_mlit_chassis_list_no":"1","mst_chassis_car_mlit_chassis_no_from":"ZR250B-029024","mst_chassis_car_mlit_chassis_to_to":"ZR250B-035137"}],"recall_type_data_car_mlit_chassis_list1":[],"recall_type_data_car_mlit_chassis_list2":[],"recall_type_data_car_mlit_chassis_list3":[],"recall_type_data_car_mlit_chassis_list4":[],"recall_type_data_car_mlit_chassis_list5":[]},{"recall_type_data_car_mlit_notification_no":"1116980","recall_type_data_car_mlit_model_list_no":"2","recall_type_data_car_mlit_car_name_code":"スズキ","recall_type_data_car_mlit_model_name":"BA-ZR250C","recall_type_data_car_mlit_common_name":"ＧＳＸ２５０ＦＸ","recall_type_data_car_mlit_chassis_list":[{"mst_chassis_car_mlit_notification_no":"1116980","mst_chassis_car_mlit_model_list_no":"2","mst_chassis_car_mlit_chassis_list_no":"1","mst_chassis_car_mlit_chassis_no_from":"ZR250C-005303","mst_chassis_car_mlit_chassis_to_to":"ZR250C-007142"}],"recall_type_data_car_mlit_chassis_list1":[],"recall_type_data_car_mlit_chassis_list2":[],"recall_type_data_car_mlit_chassis_list3":[],"recall_type_data_car_mlit_chassis_list4":[],"recall_type_data_car_mlit_chassis_list5":[]},{"recall_type_data_car_mlit_notification_no":"1116980","recall_type_data_car_mlit_model_list_no":"3","recall_type_data_car_mlit_car_name_code":"カワサキ","recall_type_data_car_mlit_model_name":"BC-ZR400E","recall_type_data_car_mlit_common_name":"ＺＲＸ","recall_type_data_car_mlit_chassis_list":[{"mst_chassis_car_mlit_notification_no":"1116980","mst_chassis_car_mlit_model_list_no":"3","mst_chassis_car_mlit_chassis_list_no":"1","mst_chassis_car_mlit_chassis_no_from":"ZR400E-051004","mst_chassis_car_mlit_chassis_to_to":"ZR400E-053042"}],"recall_type_data_car_mlit_chassis_list1":[],"recall_type_data_car_mlit_chassis_list2":[],"recall_type_data_car_mlit_chassis_list3":[],"recall_type_data_car_mlit_chassis_list4":[],"recall_type_data_car_mlit_chassis_list5":[]},{"recall_type_data_car_mlit_notification_no":"1116980","recall_type_data_car_mlit_model_list_no":"4","recall_type_data_car_mlit_car_name_code":"カワサキ","recall_type_data_car_mlit_model_name":"BC-ZR400E","recall_type_data_car_mlit_common_name":"ＺＲＸ－２","recall_type_data_car_mlit_chassis_list":[{"mst_chassis_car_mlit_notification_no":"1116980","mst_chassis_car_mlit_model_list_no":"4","mst_chassis_car_mlit_chassis_list_no":"1","mst_chassis_car_mlit_chassis_no_from":"ZR400E-342284","mst_chassis_car_mlit_chassis_to_to":"ZR400E-346042"}],"recall_type_data_car_mlit_chassis_list1":[],"recall_type_data_car_mlit_chassis_list2":[],"recall_type_data_car_mlit_chassis_list3":[],"recall_type_data_car_mlit_chassis_list4":[],"recall_type_data_car_mlit_chassis_list5":[]},{"recall_type_data_car_mlit_notification_no":"1116980","recall_type_data_car_mlit_model_list_no":"5","recall_type_data_car_mlit_car_name_code":"カワサキ","recall_type_data_car_mlit_model_name":"BC-ZR750C","recall_type_data_car_mlit_common_name":"ゼファー７５０","recall_type_data_car_mlit_chassis_list":[{"mst_chassis_car_mlit_notification_no":"1116980","mst_chassis_car_mlit_model_list_no":"5","mst_chassis_car_mlit_chassis_list_no":"1","mst_chassis_car_mlit_chassis_no_from":"ZR750C-077253","mst_chassis_car_mlit_chassis_to_to":"ZR750C-077533"}],"recall_type_data_car_mlit_chassis_list1":[],"recall_type_data_car_mlit_chassis_list2":[],"recall_type_data_car_mlit_chassis_list3":[],"recall_type_data_car_mlit_chassis_list4":[],"recall_type_data_car_mlit_chassis_list5":[]},{"recall_type_data_car_mlit_notification_no":"1116980","recall_type_data_car_mlit_model_list_no":"6","recall_type_data_car_mlit_car_name_code":"カワサキ","recall_type_data_car_mlit_model_name":"BC-ZR750F","recall_type_data_car_mlit_common_name":"ＺＲ－７Ｓ","recall_type_data_car_mlit_chassis_list":[{"mst_chassis_car_mlit_notification_no":"1116980","mst_chassis_car_mlit_model_list_no":"6","mst_chassis_car_mlit_chassis_list_no":"1","mst_chassis_car_mlit_chassis_no_from":"ZR750F-112082","mst_chassis_car_mlit_chassis_to_to":"ZR750F-112201"}],"recall_type_data_car_mlit_chassis_list1":[],"recall_type_data_car_mlit_chassis_list2":[],"recall_type_data_car_mlit_chassis_list3":[],"recall_type_data_car_mlit_chassis_list4":[],"recall_type_data_car_mlit_chassis_list5":[]},{"recall_type_data_car_mlit_notification_no":"1116980","recall_type_data_car_mlit_model_list_no":"7","recall_type_data_car_mlit_car_name_code":"カワサキ","recall_type_data_car_mlit_model_name":"BC-ZRT10A","recall_type_data_car_mlit_common_name":"ゼファー１１００","recall_type_data_car_mlit_chassis_list":[{"mst_chassis_car_mlit_notification_no":"1116980","mst_chassis_car_mlit_model_list_no":"7","mst_chassis_car_mlit_chassis_list_no":"1","mst_chassis_car_mlit_chassis_no_from":"ZRT10A-069133","mst_chassis_car_mlit_chassis_to_to":"ZRT10A-069397"}],"recall_type_data_car_mlit_chassis_list1":[],"recall_type_data_car_mlit_chassis_list2":[],"recall_type_data_car_mlit_chassis_list3":[],"recall_type_data_car_mlit_chassis_list4":[],"recall_type_data_car_mlit_chassis_list5":[]}],
+        "typeList1":[],
+        "typeList2":[],
+        "typeList3":[],
+        "typeList4":[],
+        "typeList5":[],
+        "typeList6":[],
+        "typeList7":[],
+        "typeList8":[],
+        "typeList9":[],
+        "typeList10":[],
+        "typeList11":[],
+        "typeList12":[],
+        "typeList13":[],
+        "typeList14":[],
+        "typeList15":[],
+        "typeList16":[],
+        "typeList17":[],
+        "typeList18":[],
+        "typeList19":[],
+        "typeList20":[],
+        "typeList21":[],
+        "typeList22":[],
+        "typeList23":[],
+        "typeList24":[],
+        "typeList25":[],
+        "typeList26":[],
+        "typeList27":[],
+        "typeList28":[],
+        "typeList29":[],
+        "typeList30":[],
+        "typeList31":[],
+        "typeList32":[],
+        "typeList33":[],
+        "typeList34":[],
+        "typeList35":[],
+        "typeList36":[],
+        "typeList37":[],
+        "typeList38":[],
+        "typeList39":[],
+        "typeList40":[],
+        "typeList41":[],
+        "typeList42":[],
+        "typeList43":[],
+        "typeList44":[],
+        "typeList45":[],
+        "typeList46":[],
+        "typeList47":[],
+        "typeList48":[],
+        "typeList49":[],
+        "typeList50":[],
+        "typeList51":[],
+        "typeList52":[],
+        "typeList53":[],
+        "typeList54":[],
+        "typeList55":[],
+        "typeList56":[],
+        "typeList57":[],
+        "typeList58":[],
+        "typeList59":[],
+        "typeList60":[],
+        "count": "4"
+        }
+        
+                
+                    ,
+                
+            
+    
+    
+    
+        
+        
+        {
+        "recall_data_car_mlit_id":"3000635",
+        "recall_data_car_mlit_notification_no":"1109960",
+        "recall_data_car_mlit_notification_date":"2003/10/30",
+        "recall_data_car_mlit_defective_device":"潤滑装置",
+        "recall_data_car_mlit_recall_car_count":"241",
+        "recall_data_car_mlit_import_production_start_date":"2002年9月 3日",
+        "recall_data_car_mlit_import_production_end_date":"2003年7月 9日",
+        "recall_data_car_mlit_model_import_production_start_date":"2003年10月31日",
+        "recall_data_car_mlit_model_import_production_end_date":"0000年12月 0日",
+        "recall_data_car_mlit_delete_flag":"オフ",
+        "recall_data_car_mlit_situation_explanatory_text":"　オイルクーラの塗装が不適切なため、オイルクーラとオイルパイプを締結するボルトが 緩むものがある。そのため、そのまま使用を続けると、オイルパイプの取付部からオイル が漏れるおそれがある。",
+        "recall_data_car_mlit_measures_explanatory_text":"　全車両、オイルクーラを対策品と交換するとともに、オイルクーラとオイルパイプ間の オーリング及びボルトを新品と交換する。",
+        "recall_data_car_mlit_file_name":"<span class=\"mt-enclosure mt-enclosure-file\" style=\"display: inline;\"><a href=\"../recallpdf/1109960.pdf\">1109960.pdf</a></span>",
+        "recall_data_car_mlit_recall_campaign_flag":"1",
+        "recall_data_car_mlit_home_foreign_country_flag":"1",
+        "recall_data_car_mlit_mea_no":"09960",
+        "typeList":[{"recall_type_data_car_mlit_notification_no":"1109960","recall_type_data_car_mlit_model_list_no":"1","recall_type_data_car_mlit_car_name_code":"カワサキ","recall_type_data_car_mlit_model_name":"BC-ZRT10A","recall_type_data_car_mlit_common_name":"ゼファー１１００","recall_type_data_car_mlit_chassis_list":[{"mst_chassis_car_mlit_notification_no":"1109960","mst_chassis_car_mlit_model_list_no":"1","mst_chassis_car_mlit_chassis_list_no":"1","mst_chassis_car_mlit_chassis_no_from":"ZRT10A-062565","mst_chassis_car_mlit_chassis_to_to":"ZRT10A-065137"},{"mst_chassis_car_mlit_notification_no":"1109960","mst_chassis_car_mlit_model_list_no":"1","mst_chassis_car_mlit_chassis_list_no":"2","mst_chassis_car_mlit_chassis_no_from":"ZRT10A-309251","mst_chassis_car_mlit_chassis_to_to":"ZRT10A-309436"}],"recall_type_data_car_mlit_chassis_list1":[],"recall_type_data_car_mlit_chassis_list2":[],"recall_type_data_car_mlit_chassis_list3":[],"recall_type_data_car_mlit_chassis_list4":[],"recall_type_data_car_mlit_chassis_list5":[]}],
+        "typeList1":[],
+        "typeList2":[],
+        "typeList3":[],
+        "typeList4":[],
+        "typeList5":[],
+        "typeList6":[],
+        "typeList7":[],
+        "typeList8":[],
+        "typeList9":[],
+        "typeList10":[],
+        "typeList11":[],
+        "typeList12":[],
+        "typeList13":[],
+        "typeList14":[],
+        "typeList15":[],
+        "typeList16":[],
+        "typeList17":[],
+        "typeList18":[],
+        "typeList19":[],
+        "typeList20":[],
+        "typeList21":[],
+        "typeList22":[],
+        "typeList23":[],
+        "typeList24":[],
+        "typeList25":[],
+        "typeList26":[],
+        "typeList27":[],
+        "typeList28":[],
+        "typeList29":[],
+        "typeList30":[],
+        "typeList31":[],
+        "typeList32":[],
+        "typeList33":[],
+        "typeList34":[],
+        "typeList35":[],
+        "typeList36":[],
+        "typeList37":[],
+        "typeList38":[],
+        "typeList39":[],
+        "typeList40":[],
+        "typeList41":[],
+        "typeList42":[],
+        "typeList43":[],
+        "typeList44":[],
+        "typeList45":[],
+        "typeList46":[],
+        "typeList47":[],
+        "typeList48":[],
+        "typeList49":[],
+        "typeList50":[],
+        "typeList51":[],
+        "typeList52":[],
+        "typeList53":[],
+        "typeList54":[],
+        "typeList55":[],
+        "typeList56":[],
+        "typeList57":[],
+        "typeList58":[],
+        "typeList59":[],
+        "typeList60":[],
+        "count": "4"
+        }
+        
+                
+                    ,
+                
+            
+    
+    
+    
+        
+        
+        {
+        "recall_data_car_mlit_id":"3000206",
+        "recall_data_car_mlit_notification_no":"1105960",
+        "recall_data_car_mlit_notification_date":"1999/12/09",
+        "recall_data_car_mlit_defective_device":"駆動力伝達部",
+        "recall_data_car_mlit_recall_car_count":"688",
+        "recall_data_car_mlit_import_production_start_date":"1998年7月30日",
+        "recall_data_car_mlit_import_production_end_date":"1999年7月16日",
+        "recall_data_car_mlit_model_import_production_start_date":"1999年12月10日",
+        "recall_data_car_mlit_model_import_production_end_date":"0000年12月 0日",
+        "recall_data_car_mlit_delete_flag":"オフ",
+        "recall_data_car_mlit_situation_explanatory_text":"動力伝達装置のクラッチ部において、減速時に駆動車輪から加わる逆回転力を緩衝するス プリングを保持しているナットの寸法が不適切なため、そのままの状態で使用を続けると 、当該スプリングの一部が折損し、その破片がクラッチハブに噛み込み、最悪の場合、ク ラッチ操作ができなくなり、走行不能に至るおそれがある。",
+        "recall_data_car_mlit_measures_explanatory_text":"全車両、当該ナットを良品と、スプリングを新品と交換するとともに、関係部品を点検し 、損傷しているものは新品と交換する。",
+        "recall_data_car_mlit_file_name":"<span class=\"mt-enclosure mt-enclosure-file\" style=\"display: inline;\"><a href=\"../recallpdf/1105960.pdf\">1105960.pdf</a></span>",
+        "recall_data_car_mlit_recall_campaign_flag":"1",
+        "recall_data_car_mlit_home_foreign_country_flag":"1",
+        "recall_data_car_mlit_mea_no":"05960",
+        "typeList":[{"recall_type_data_car_mlit_notification_no":"1105960","recall_type_data_car_mlit_model_list_no":"1","recall_type_data_car_mlit_car_name_code":"カワサキ","recall_type_data_car_mlit_model_name":"ZRT10A","recall_type_data_car_mlit_common_name":"ゼファー１１００","recall_type_data_car_mlit_chassis_list":[{"mst_chassis_car_mlit_notification_no":"1105960","mst_chassis_car_mlit_model_list_no":"1","mst_chassis_car_mlit_chassis_list_no":"1","mst_chassis_car_mlit_chassis_no_from":"ZRT10A-049263","mst_chassis_car_mlit_chassis_to_to":"ZRT10A-056330"},{"mst_chassis_car_mlit_notification_no":"1105960","mst_chassis_car_mlit_model_list_no":"1","mst_chassis_car_mlit_chassis_list_no":"2","mst_chassis_car_mlit_chassis_no_from":"ZRT10A-302652","mst_chassis_car_mlit_chassis_to_to":"ZRT10A-307201"}],"recall_type_data_car_mlit_chassis_list1":[],"recall_type_data_car_mlit_chassis_list2":[],"recall_type_data_car_mlit_chassis_list3":[],"recall_type_data_car_mlit_chassis_list4":[],"recall_type_data_car_mlit_chassis_list5":[]}],
+        "typeList1":[],
+        "typeList2":[],
+        "typeList3":[],
+        "typeList4":[],
+        "typeList5":[],
+        "typeList6":[],
+        "typeList7":[],
+        "typeList8":[],
+        "typeList9":[],
+        "typeList10":[],
+        "typeList11":[],
+        "typeList12":[],
+        "typeList13":[],
+        "typeList14":[],
+        "typeList15":[],
+        "typeList16":[],
+        "typeList17":[],
+        "typeList18":[],
+        "typeList19":[],
+        "typeList20":[],
+        "typeList21":[],
+        "typeList22":[],
+        "typeList23":[],
+        "typeList24":[],
+        "typeList25":[],
+        "typeList26":[],
+        "typeList27":[],
+        "typeList28":[],
+        "typeList29":[],
+        "typeList30":[],
+        "typeList31":[],
+        "typeList32":[],
+        "typeList33":[],
+        "typeList34":[],
+        "typeList35":[],
+        "typeList36":[],
+        "typeList37":[],
+        "typeList38":[],
+        "typeList39":[],
+        "typeList40":[],
+        "typeList41":[],
+        "typeList42":[],
+        "typeList43":[],
+        "typeList44":[],
+        "typeList45":[],
+        "typeList46":[],
+        "typeList47":[],
+        "typeList48":[],
+        "typeList49":[],
+        "typeList50":[],
+        "typeList51":[],
+        "typeList52":[],
+        "typeList53":[],
+        "typeList54":[],
+        "typeList55":[],
+        "typeList56":[],
+        "typeList57":[],
+        "typeList58":[],
+        "typeList59":[],
+        "typeList60":[],
+        "count": "4"
+        }
+        
+                
+            
+    
+    
+    ]
+    }
+
+
+
+
+
+    
+  
+  
+    
+  
