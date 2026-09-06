@@ -16,17 +16,16 @@ struct RecallSearchView: View {
     @State private var typeCode = ""
     @State private var vin = ""
 
-    @State private var hits: [Hit] = []
+    @State private var matches: [RecallMatch] = []
     @State private var isSearching = false
     @State private var errorText: String?
+    /// 該当が多すぎて API の上限で打ち切られたか
+    @State private var truncated = false
+    /// 型式で絞り込む前に候補が何件あったか。0 件なら「そもそも無い」、
+    /// 1 件以上なら「候補はあったが型式が一致しなかった」と区別できる
+    @State private var fetchedCount = 0
     /// 一度でも検索したか（未検索と 0 件を区別する）
     @State private var searchedQuery: String?
-
-    private struct Hit: Identifiable {
-        let recall: Recall
-        let level: RecallMatcher.MatchLevel
-        var id: String { recall.recallId }
-    }
 
     private var trimmedTypeCode: String {
         typeCode.trimmingCharacters(in: .whitespaces)
@@ -112,22 +111,44 @@ struct RecallSearchView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
-        } else if hits.isEmpty {
+        } else if matches.isEmpty && fetchedCount > 0 {
+            // 候補はあったのに一致しなかった。入力が車検証と違う可能性が高いので、
+            // 「対象外」と受け取られないように書き分ける。
+            Section {
+                Label("入力された型式と一致する届出はありませんでした",
+                      systemImage: "exclamationmark.circle")
+                    .font(.callout)
+                    .foregroundStyle(.orange)
+            } footer: {
+                Text("似た型式の届出は見つかりましたが、入力とは一致しませんでした。"
+                     + "車検証の型式を省略せずに入力してください（例: DAA-ZVW50）。"
+                     + "これは「対象外」という意味ではありません。")
+            }
+        } else if matches.isEmpty {
             Section {
                 Label("該当するリコールは見つかりませんでした", systemImage: "checkmark.circle")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             } footer: {
-                Text("型式は車検証のとおり、排ガス記号から入力してください（例: DAA-ZVW50）。")
+                Text("型式は車検証のとおり入力してください（例: DAA-ZVW50）。排ガス記号は有無どちらでも構いません。")
             }
         } else {
-            Section("検索結果 \(hits.count) 件") {
-                ForEach(hits) { hit in
+            Section {
+                ForEach(matches) { match in
                     NavigationLink {
-                        RecallDetailView(recall: hit.recall)
+                        RecallDetailView(recall: match.recall)
                     } label: {
-                        SearchResultRow(recall: hit.recall, level: hit.level)
+                        SearchResultRow(recall: match.recall, level: match.level)
                     }
+                }
+            } header: {
+                Text("検索結果 \(matches.count) 件")
+            } footer: {
+                if truncated {
+                    Label("該当が多すぎるため一部のみ表示しています。型式を車検証のとおり入力すると絞り込めます。",
+                          systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
                 }
             }
         }
@@ -141,11 +162,15 @@ struct RecallSearchView: View {
         Task {
             defer { isSearching = false }
             do {
-                let found = try await monitorStore.search(typeCode: query, vin: vin)
-                hits = found.map { Hit(recall: $0.recall, level: $0.level) }
+                let outcome = try await monitorStore.search(typeCode: query, vin: vin)
+                matches = outcome.matches
+                truncated = outcome.truncated
+                fetchedCount = outcome.fetchedCount
                 searchedQuery = query
             } catch {
-                hits = []
+                matches = []
+                truncated = false
+                fetchedCount = 0
                 errorText = error.localizedDescription
             }
         }
@@ -160,7 +185,7 @@ private struct SearchResultRow: View {
         VStack(alignment: .leading, spacing: 4) {
             switch level {
             case .confirmed:
-                Label("対象です", systemImage: "exclamationmark.triangle.fill")
+                Label("対象の可能性が高い（車台番号が範囲内）", systemImage: "exclamationmark.triangle.fill")
                     .font(.caption.bold())
                     .foregroundStyle(.orange)
             case .possible:

@@ -25,8 +25,10 @@ enum NotificationManager {
         content.sound = .default
         content.userInfo = ["recall_id": recall.recallId]
 
+        // identifier に車両を含める。届出番号だけだと、同じリコールに 2 台が
+        // 該当したとき後勝ちで上書きされ、片方の通知が消える。
         let request = UNNotificationRequest(
-            identifier: "recall-\(recall.recallId)",
+            identifier: "recall-\(vehicle.id.uuidString)-\(recall.recallId)",
             content: content,
             trigger: nil
         )

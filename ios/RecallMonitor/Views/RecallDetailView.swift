@@ -29,7 +29,7 @@ struct RecallDetailView: View {
                             .foregroundStyle(.secondary)
                         switch level(of: a) {
                         case .confirmed:
-                            Label("あなたの車両が対象です", systemImage: "exclamationmark.triangle.fill")
+                            Label("あなたの車両が対象の可能性が高い（車台番号が範囲内）", systemImage: "exclamationmark.triangle.fill")
                                 .font(.caption.bold())
                                 .foregroundStyle(.orange)
                         case .possible:
