@@ -86,14 +86,19 @@ struct RecallAPIClient {
             throw RecallAPIClientError.server(http.statusCode)
         }
 
-        guard let body = Self.extractJSONObject(from: data) else {
+        return try Self.parse(data, pdfBase: config.pdfBase, limit: limit)
+    }
+
+    /// 応答の解析。ネットワークから切り離してテストできるよう分けてある。
+    static func parse(_ data: Data, pdfBase: String, limit: Int) throws -> SearchResult {
+        guard let body = extractJSONObject(from: data) else {
             throw RecallAPIClientError.malformedResponse
         }
         do {
             let decoded = try JSONDecoder().decode(APIResponse.self, from: body)
             let recalls = decoded.data
                 .filter { $0.deleteFlag != "オン" }   // 取り下げられた届出は除く
-                .map { $0.toRecall(pdfBase: config.pdfBase) }
+                .map { $0.toRecall(pdfBase: pdfBase) }
             return SearchResult(recalls: recalls,
                                 returnedCount: decoded.data.count,
                                 limit: limit)
