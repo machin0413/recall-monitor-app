@@ -60,7 +60,11 @@ https://renrakuda.mlit.go.jp/mt/mt-estraier.cgi
 https://raw.githubusercontent.com/machin0413/recall-monitor-app/main/config.json
 ```
 
-国交省側の仕様が変わったら **`config.json` を直して main に push するだけで、全端末が復旧します**（App Store 更新は不要。反映は raw のキャッシュにより最大5分）。`notice` に文言を入れれば、検索画面に周知を出すこともできます。復旧までの案内に使えます。
+国交省側の仕様が変わったら **`config.json` を直して main に push するだけで、全端末が復旧します**（App Store 更新は不要）。`notice` に文言を入れれば、検索画面に周知を出すこともできます。復旧までの案内に使えます。
+
+**反映には 5〜6 分かかります。** `raw.githubusercontent.com` の CDN が 5 分キャッシュ（`max-age=300`）するためで、クライアント側からは短縮できません。`Cache-Control: no-cache` を送っても raw 側に無視されます。実測では push から約 6 分でアプリに届きました。障害対応としては許容できる範囲ですが、**push 直後に確認しても反映されていないのが正常**です。慌てて何度も直さないでください。
+
+なお、アプリ側は `URLSession` のキャッシュを迂回しています（`reloadIgnoringLocalAndRemoteCacheData`）。これをやらないと端末側にもう一段キャッシュが乗り、CDN が新しくなっても古い設定を掴み続けます。取得自体は成功して取得時刻も更新されるのに中身だけ古い、という気づきにくい壊れ方をするため、ここは条件付き GET にしてはいけません。
 
 配信のために GitHub Pages を用意する必要はありません。`raw.githubusercontent.com` がそのまま使えるので、リポジトリにファイルを 1 つ置くだけです。
 
