@@ -121,6 +121,10 @@ final class RecallMonitorStore: ObservableObject {
         let matches: [RecallMatch]
         /// API の上限に達しており、表示できていない届出がありうる
         let truncated: Bool
+        /// API が返した候補の件数（型式で絞り込む前）。
+        /// 候補はあったのに 1 件も一致しないなら、入力が車検証と違う可能性が高い。
+        /// 「該当なし」を「自分の車は対象外」と誤解させないために使う。
+        let fetchedCount: Int
     }
 
     /// 型式（＋任意の車台番号）で検索し、該当度つきで返す。
@@ -130,7 +134,9 @@ final class RecallMonitorStore: ObservableObject {
         // 'ZRT10A' で登録された届出が返ってこず、取りこぼす。
         // 小文字・全角のままだと 0 件になるので、整形もここで済ませる。
         let query = RecallMatcher.searchQuery(for: typeCode)
-        guard !query.isEmpty else { return SearchOutcome(matches: [], truncated: false) }
+        guard !query.isEmpty else {
+            return SearchOutcome(matches: [], truncated: false, fetchedCount: 0)
+        }
 
         let result = try await client.search(modelName: query, limit: limit ?? perVehicleLimit)
         let matches = result.recalls
@@ -144,7 +150,9 @@ final class RecallMonitorStore: ObservableObject {
                     ? $0.level > $1.level
                     : ($0.recall.publishedAt ?? "") > ($1.recall.publishedAt ?? "")
             }
-        return SearchOutcome(matches: matches, truncated: result.isTruncated)
+        return SearchOutcome(matches: matches,
+                             truncated: result.isTruncated,
+                             fetchedCount: result.recalls.count)
     }
 
     /// 新しく該当したリコールにだけ通知する。

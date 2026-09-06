@@ -21,6 +21,9 @@ struct RecallSearchView: View {
     @State private var errorText: String?
     /// 該当が多すぎて API の上限で打ち切られたか
     @State private var truncated = false
+    /// 型式で絞り込む前に候補が何件あったか。0 件なら「そもそも無い」、
+    /// 1 件以上なら「候補はあったが型式が一致しなかった」と区別できる
+    @State private var fetchedCount = 0
     /// 一度でも検索したか（未検索と 0 件を区別する）
     @State private var searchedQuery: String?
 
@@ -108,6 +111,19 @@ struct RecallSearchView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
+        } else if matches.isEmpty && fetchedCount > 0 {
+            // 候補はあったのに一致しなかった。入力が車検証と違う可能性が高いので、
+            // 「対象外」と受け取られないように書き分ける。
+            Section {
+                Label("入力された型式と一致する届出はありませんでした",
+                      systemImage: "exclamationmark.circle")
+                    .font(.callout)
+                    .foregroundStyle(.orange)
+            } footer: {
+                Text("似た型式の届出は見つかりましたが、入力とは一致しませんでした。"
+                     + "車検証の型式を省略せずに入力してください（例: DAA-ZVW50）。"
+                     + "これは「対象外」という意味ではありません。")
+            }
         } else if matches.isEmpty {
             Section {
                 Label("該当するリコールは見つかりませんでした", systemImage: "checkmark.circle")
@@ -149,10 +165,12 @@ struct RecallSearchView: View {
                 let outcome = try await monitorStore.search(typeCode: query, vin: vin)
                 matches = outcome.matches
                 truncated = outcome.truncated
+                fetchedCount = outcome.fetchedCount
                 searchedQuery = query
             } catch {
                 matches = []
                 truncated = false
+                fetchedCount = 0
                 errorText = error.localizedDescription
             }
         }
